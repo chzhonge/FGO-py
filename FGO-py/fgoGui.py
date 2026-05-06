@@ -44,6 +44,24 @@ class MainWindow(QMainWindow,Ui_fgoMainWindow):
         self.CBB_CHAPTER.addItems(QApplication.translate('quest','-'.join(str(j)for j in i))for i in self.chapter)
         self.worker=Thread()
         self.config=config
+        self.CBB_FRIEND.addItem(self.tr("默认"), "")
+        if os.path.isdir('fgoImage/friend'):
+            for d in os.listdir('fgoImage/friend'):
+                if os.path.isdir(os.path.join('fgoImage/friend', d)) and d not in ('in', 'unused'):
+                    self.CBB_FRIEND.addItem(d, d)
+        friend_dir = self.config.get('friendDir', '')
+        idx = self.CBB_FRIEND.findData(friend_dir)
+        if idx >= 0:
+            self.CBB_FRIEND.setCurrentIndex(idx)
+        else:
+            self.CBB_FRIEND.setCurrentIndex(0)
+            self.config['friendDir'] = ''
+        fgoKernel.setFriendDir(self.config.get('friendDir', ''))
+        def on_friend_changed(idx):
+            dir_name = self.CBB_FRIEND.itemData(idx)
+            self.config['friendDir'] = dir_name
+            fgoKernel.setFriendDir(dir_name)
+        self.CBB_FRIEND.currentIndexChanged.connect(on_friend_changed)
         for key,ui,callback in(
             ('teamIndex',self.TXT_TEAM,lambda x:setattr(fgoKernel.Main,'teamIndex',x)),
             (False,self.CKB_TEAM,lambda x:setattr(fgoKernel.Main,'autoFormation',x)),

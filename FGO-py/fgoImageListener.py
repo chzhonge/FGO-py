@@ -85,7 +85,7 @@ class ImageListener(dict):
         if not os.path.exists(path):return None
         for i in range(retries):
             try:
-                img=cv2.imread(path)
+                img=cv2.imdecode(numpy.fromfile(path, dtype=numpy.uint8), cv2.IMREAD_COLOR)
                 if img is not None:return(img,numpy.max(img,axis=2)>>1)
             except:pass
             time.sleep(0.1)

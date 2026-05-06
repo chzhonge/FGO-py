@@ -35,6 +35,14 @@ logger=getLogger('Kernel')
 
 friendImg=ImageListener('fgoImage/friend/')
 mailImg=ImageListener('fgoImage/mail/')
+import os
+def setFriendDir(dir_name):
+    global friendImg
+    path = f'fgoImage/friend/{dir_name}/' if dir_name else 'fgoImage/friend/'
+    if not hasattr(friendImg, 'path') or os.path.abspath(path) + os.sep != friendImg.path:
+        logger.info(f'Set friend image dir to {path}')
+        friendImg = ImageListener(path)
+
 mutex=threading.Lock()
 def serialize(lock):
     def decorator(func):

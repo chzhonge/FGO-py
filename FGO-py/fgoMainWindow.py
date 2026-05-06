@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'fgoMainWindow.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.7.2
+## Created by: Qt User Interface Compiler version 6.6.1
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -162,7 +162,7 @@ class Ui_fgoMainWindow(object):
 
         self.BTN_QUESTLOAD = QPushButton(self.widget)
         self.BTN_QUESTLOAD.setObjectName(u"BTN_QUESTLOAD")
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        sizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.BTN_QUESTLOAD.sizePolicy().hasHeightForWidth())
@@ -203,11 +203,21 @@ class Ui_fgoMainWindow(object):
 
         self.LAYOUT_INFO.setLayout(0, QFormLayout.FieldRole, self.LAYOUT_INFO_TEAM)
 
+        self.LBL_FRIEND = QLabel(self.widget)
+        self.LBL_FRIEND.setObjectName(u"LBL_FRIEND")
+
+        self.LAYOUT_INFO.setWidget(1, QFormLayout.LabelRole, self.LBL_FRIEND)
+
+        self.CBB_FRIEND = QComboBox(self.widget)
+        self.CBB_FRIEND.setObjectName(u"CBB_FRIEND")
+
+        self.LAYOUT_INFO.setWidget(1, QFormLayout.FieldRole, self.CBB_FRIEND)
+
         self.LBL_APPLE = QLabel(self.widget)
         self.LBL_APPLE.setObjectName(u"LBL_APPLE")
         self.LBL_APPLE.setMaximumSize(QSize(16777215, 28))
 
-        self.LAYOUT_INFO.setWidget(1, QFormLayout.LabelRole, self.LBL_APPLE)
+        self.LAYOUT_INFO.setWidget(2, QFormLayout.LabelRole, self.LBL_APPLE)
 
         self.LAYOUT_INFO_APPLE = QHBoxLayout()
         self.LAYOUT_INFO_APPLE.setObjectName(u"LAYOUT_INFO_APPLE")
@@ -232,18 +242,18 @@ class Ui_fgoMainWindow(object):
         self.LAYOUT_INFO_APPLE.addWidget(self.TXT_APPLE)
 
 
-        self.LAYOUT_INFO.setLayout(1, QFormLayout.FieldRole, self.LAYOUT_INFO_APPLE)
+        self.LAYOUT_INFO.setLayout(2, QFormLayout.FieldRole, self.LAYOUT_INFO_APPLE)
 
         self.LBL_CURRENTDEVICE = QLabel(self.widget)
         self.LBL_CURRENTDEVICE.setObjectName(u"LBL_CURRENTDEVICE")
 
-        self.LAYOUT_INFO.setWidget(2, QFormLayout.LabelRole, self.LBL_CURRENTDEVICE)
+        self.LAYOUT_INFO.setWidget(3, QFormLayout.LabelRole, self.LBL_CURRENTDEVICE)
 
         self.LAYOUT_DEVICE = QHBoxLayout()
         self.LAYOUT_DEVICE.setObjectName(u"LAYOUT_DEVICE")
         self.LBL_DEVICE = QLabel(self.widget)
         self.LBL_DEVICE.setObjectName(u"LBL_DEVICE")
-        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        sizePolicy1 = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         sizePolicy1.setHorizontalStretch(0)
         sizePolicy1.setVerticalStretch(0)
         sizePolicy1.setHeightForWidth(self.LBL_DEVICE.sizePolicy().hasHeightForWidth())
@@ -253,19 +263,19 @@ class Ui_fgoMainWindow(object):
 
         self.BTN_CONNECT = QPushButton(self.widget)
         self.BTN_CONNECT.setObjectName(u"BTN_CONNECT")
-        self.BTN_CONNECT.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.BTN_CONNECT.setCursor(QCursor(Qt.PointingHandCursor))
 
         self.LAYOUT_DEVICE.addWidget(self.BTN_CONNECT)
 
 
-        self.LAYOUT_INFO.setLayout(2, QFormLayout.FieldRole, self.LAYOUT_DEVICE)
+        self.LAYOUT_INFO.setLayout(3, QFormLayout.FieldRole, self.LAYOUT_DEVICE)
 
 
         self.LAYOUT_LAUNCH.addLayout(self.LAYOUT_INFO)
 
         self.BTN_MAIN = QPushButton(self.widget)
         self.BTN_MAIN.setObjectName(u"BTN_MAIN")
-        self.BTN_MAIN.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.BTN_MAIN.setCursor(QCursor(Qt.PointingHandCursor))
 
         self.LAYOUT_LAUNCH.addWidget(self.BTN_MAIN)
 
@@ -363,7 +373,8 @@ class Ui_fgoMainWindow(object):
         QWidget.setTabOrder(self.BTN_QUESTDOWN, self.BTN_QUESTCLEAR)
         QWidget.setTabOrder(self.BTN_QUESTCLEAR, self.TXT_TEAM)
         QWidget.setTabOrder(self.TXT_TEAM, self.CKB_TEAM)
-        QWidget.setTabOrder(self.CKB_TEAM, self.CBB_APPLE)
+        QWidget.setTabOrder(self.CKB_TEAM, self.CBB_FRIEND)
+        QWidget.setTabOrder(self.CBB_FRIEND, self.CBB_APPLE)
         QWidget.setTabOrder(self.CBB_APPLE, self.TXT_APPLE)
         QWidget.setTabOrder(self.TXT_APPLE, self.BTN_CONNECT)
         QWidget.setTabOrder(self.BTN_CONNECT, self.BTN_QUESTLOAD)
@@ -507,6 +518,10 @@ class Ui_fgoMainWindow(object):
         self.TXT_TEAM.setStatusTip(QCoreApplication.translate("fgoMainWindow", u"\u6240\u9009\u7f16\u961f\u5728\u961f\u4f0d\u7f16\u6210\u754c\u9762\u7684\u4f4d\u7f6e,\u4ece\u5de6\u5230\u53f31-10,0\u4e3a\u4e0d\u5207\u6362\u7f16\u961f", None))
 #endif // QT_CONFIG(statustip)
         self.CKB_TEAM.setText(QCoreApplication.translate("fgoMainWindow", u"\u81ea\u52a8\u7f16\u961f", None))
+        self.LBL_FRIEND.setText(QCoreApplication.translate("fgoMainWindow", u"\u52a9\u6218", None))
+#if QT_CONFIG(statustip)
+        self.CBB_FRIEND.setStatusTip(QCoreApplication.translate("fgoMainWindow", u"\u52a9\u6218\u8bbe\u5b9a(\u5bf9\u5e94 img/friend \u4e0b\u7684\u6587\u4ef6\u5939)", None))
+#endif // QT_CONFIG(statustip)
         self.LBL_APPLE.setText(QCoreApplication.translate("fgoMainWindow", u"\u82f9\u679c", None))
         self.CBB_APPLE.setItemText(0, QCoreApplication.translate("fgoMainWindow", u"\u91d1", None))
         self.CBB_APPLE.setItemText(1, QCoreApplication.translate("fgoMainWindow", u"\u94f6", None))

@@ -192,6 +192,20 @@
            </layout>
           </item>
           <item row="1" column="0">
+           <widget class="QLabel" name="LBL_FRIEND">
+            <property name="text">
+             <string>助战</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QComboBox" name="CBB_FRIEND">
+            <property name="statusTip">
+             <string>助战设定(对应 img/friend 下的文件夹)</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
            <widget class="QLabel" name="LBL_APPLE">
             <property name="maximumSize">
              <size>
@@ -204,7 +218,7 @@
             </property>
            </widget>
           </item>
-          <item row="1" column="1">
+          <item row="2" column="1">
            <layout class="QHBoxLayout" name="LAYOUT_INFO_APPLE">
             <item>
              <widget class="QComboBox" name="CBB_APPLE">
@@ -265,14 +279,14 @@
             </item>
            </layout>
           </item>
-          <item row="2" column="0">
+          <item row="3" column="0">
            <widget class="QLabel" name="LBL_CURRENTDEVICE">
             <property name="text">
              <string>设备</string>
             </property>
            </widget>
           </item>
-          <item row="2" column="1">
+          <item row="3" column="1">
            <layout class="QHBoxLayout" name="LAYOUT_DEVICE">
             <item>
              <widget class="QLabel" name="LBL_DEVICE">
@@ -629,6 +643,7 @@
   <tabstop>BTN_QUESTCLEAR</tabstop>
   <tabstop>TXT_TEAM</tabstop>
   <tabstop>CKB_TEAM</tabstop>
+  <tabstop>CBB_FRIEND</tabstop>
   <tabstop>CBB_APPLE</tabstop>
   <tabstop>TXT_APPLE</tabstop>
   <tabstop>BTN_CONNECT</tabstop>
