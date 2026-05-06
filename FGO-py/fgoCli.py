@@ -330,4 +330,15 @@ parser_week.add_argument('-e','--exec',help='Execute the solved quest queue',act
 parser_169=ArgParser(prog='169',description=Cmd.do_169.__doc__)
 parser_169.add_argument('action',help='Action',type=str.lower,choices=['invoke','revoke'])
 
-def main(config):Cmd(config).cmdloop()
+def main(config,device=None):
+    if device:
+        if device.lower()=='auto':
+            devices=fgoDevice.Device.enumDevices()
+            if devices:device=devices[0]
+            else:
+                logger.error('No device found')
+                device=None
+        if device:
+            config.device=device
+            fgoDevice.device=fgoDevice.Device(device)
+    Cmd(config).cmdloop()

@@ -42,10 +42,12 @@ class XDetectBase(metaclass=logMeta(logger)):
         def wrapper(func):
             @wraps(func)
             def wrap(self,*args,**kwargs):
-                try:return func(self,*args,**kwargs)
-                except err:pass
-                logger.warning(f'Retry {getattr(func,"__qualname__",func)}({",".join(repr(i)for i in args)}{","if kwargs else""}{",".join("%s=%r"%i for i in kwargs.items())})')
-                return wrap(type(self)(),*args,**kwargs)
+                while True:
+                    try:
+                        return func(self,*args,**kwargs)
+                    except err:
+                        logger.warning(f'Retry {getattr(func,"__qualname__",func)}({",".join(repr(i)for i in args)}{","if kwargs else""}{",".join("%s=%r"%i for i in kwargs.items())})')
+                        self = type(self)()
             return wrap
         return wrapper
     def __init__(self):
@@ -161,13 +163,18 @@ class XDetectBase(metaclass=logMeta(logger)):
     def getFieldServantHp(self,pos):return self._ocrInt((200+317*pos,620,293+317*pos,644))
     def getFieldServantNp(self,pos):return self._ocrInt((220+317*pos,655,271+317*pos,680))
     def getMaterial(self):return(lambda x:{materialImg[i][0]:x.count(i)for i in set(x)-{None}})([self._select(((i[1],None)for i in materialImg),(176+i%7*137,110+i//7*142,253+i%7*137,187+i//7*142),.02)for i in range(1,21)])
-    def getSkillTargetCount(self):return(lambda x:numpy.bincount(numpy.diff(x))[1]+x[0])(cv2.dilate(numpy.max(cv2.threshold(numpy.max(self._crop((306,320,973,547)),axis=2),67,1,cv2.THRESH_BINARY)[1],axis=0).reshape(1,-1),numpy.ones((1,66),numpy.uint8)).ravel())if self._compare(self.tmpl.CROSS,(980,0,1280,300))else 0
+    @retryOnError()
+    def getSkillTargetCount(self):
+        if not self._compare(self.tmpl.CROSS,(980,0,1280,300)):return 0
+        x=cv2.dilate(numpy.max(cv2.threshold(numpy.max(self._crop((306,320,973,547)),axis=2),67,1,cv2.THRESH_BINARY)[1],axis=0).reshape(1,-1),numpy.ones((1,66),numpy.uint8)).ravel()
+        res=numpy.count_nonzero(numpy.diff(x)==1)+x[0]
+        assert res>0;return res
     @retryOnError()
     @validate()
-    def getStage(self):return self._ocrInt((884,14,902,37))
+    def getStage(self):return self._ocrInt((880,10,900,42))
     @retryOnError()
     @validate()
-    def getStageTotal(self):return self._ocrInt((912,13,932,38))
+    def getStageTotal(self):return self._ocrInt((914,10,935,42))
     def getSummonHistory(self):XDetectBase._summonHistory=self._stack(XDetectBase._summonHistory,cv2.threshold(cv2.cvtColor(self._crop((147,157,1105,547)),cv2.COLOR_BGR2GRAY),128,255,cv2.THRESH_BINARY)[1],80)
     @classmethod
     def getSummonHistoryCount(cls):return cls.__new__(cls).inject(XDetectBase._summonHistory)._count((cls.tmpl.SUMMONHISTORY[0][...,0],cls.tmpl.SUMMONHISTORY[1]),(28,0,60,XDetectBase._summonHistory.shape[0]),.7)
@@ -243,6 +250,11 @@ class XDetect:
     provider={'CN':XDetectCN,'JP':XDetectJP,'NA':XDetectNA,'TW':XDetectTW}
     region=''
     cache=None
+    @classmethod
+    def clear(cls):
+        cls.cache=None
+        XDetectBase._summonHistory=None
+        XDetectBase._weeklyMission=None
     def __new__(cls,*args,**kwargs):
         if cls.region:cls.cache=cls.provider[cls.region](*args,**kwargs)
         else:cls.cache=XDetectBase(*args,**kwargs)

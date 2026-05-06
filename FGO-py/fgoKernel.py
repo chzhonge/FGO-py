@@ -20,7 +20,7 @@
 from fgoConst import VERSION
 __version__=VERSION
 __author__='hgjazhgj'
-import logging,numpy,pulp,random,re,time,threading
+import logging,numpy,pulp,random,re,time,threading,gc
 import fgoDevice
 from itertools import permutations
 from functools import wraps
@@ -47,6 +47,7 @@ def guardian():
     logger=logging.getLogger('Guardian')
     prev=None
     while True:
+        gc.collect()
         while XDetect.cache is prev:time.sleep(3)
         if XDetect.cache.isNetworkError():
             logger.warning('Reconnecting')
@@ -62,6 +63,9 @@ class Farming:
         while not self.stop:
             if not fgoDevice.device.available:continue
             time.sleep(self.run()+30)
+            XDetect.clear()
+            fuse.clear()
+            gc.collect()
     @serialize(mutex)
     def run(self):
         from fgoFarming import farming
@@ -218,7 +222,7 @@ class ClassicTurn:
         fgoDevice.device.perform(self.selectCard(),(300,300,2300,1300,6000))
     def dispatchSkill(self):
         self.countDown=[[[max(0,j-1)for j in i]for i in self.countDown[0]],[max(0,i-1)for i in self.countDown[1]]]
-        while(s:=[(self.getSkillInfo(i,j,3),0,(i,j))for i in range(3)if self.servant[i]<6 for j in range(3)if self.countDown[0][i][j]==0 and(t:=self.getSkillInfo(i,j,0))and min(t,self.stageTotal)<<8|self.getSkillInfo(i,j,1)<=self.stage<<8|self.stageTurn and Detect.cache.isSkillReady(i,j)]+[(self.masterSkill[i][-1],1,(i,))for i in range(3)if self.countDown[1][i]==0 and self.masterSkill[i][0]and min(self.masterSkill[i][0],self.stageTotal)<<8|self.masterSkill[i][1]<=self.stage<<8|self.stageTurn]):
+        while(s:=[(self.getSkillInfo(i,j,3),0,(i,j))for i in range(3)if self.servant[i]<6 for j in range(3)if self.countDown[0][i][j]==0 and(t:=self.getSkillInfo(i,j,0))and(min(t,self.stageTotal)<self.stage or(min(t,self.stageTotal)==self.stage and self.getSkillInfo(i,j,1)<=self.stageTurn))and Detect.cache.isSkillReady(i,j)]+[(self.masterSkill[i][-1],1,(i,))for i in range(3)if self.countDown[1][i]==0 and self.masterSkill[i][0]and(min(self.masterSkill[i][0],self.stageTotal)<self.stage or(min(self.masterSkill[i][0],self.stageTotal)==self.stage and self.masterSkill[i][1]<=self.stageTurn))]):
             _,cast,arg=min(s,key=lambda x:x[0])
             [self.castServantSkill,self.castMasterSkill][cast](*arg)
             fgoDevice.device.perform('\x08',(700,))
@@ -234,7 +238,7 @@ class ClassicTurn:
             logger.warning(f'Skill {pos} {skill} Disabled')
             self.countDown[0][pos][skill]=999
         elif Detect(.7).isSkillCastFailed():
-            self.countDown[pos][skill]=1
+            self.countDown[0][pos][skill]=1
             fgoDevice.device.press('J')
         elif t:=Detect.cache.getSkillTargetCount():fgoDevice.device.perform(['3333','2244','3234'][t-1][self.getSkillInfo(pos,skill,2)],(300,))
     def castMasterSkill(self,skill):
@@ -515,6 +519,9 @@ class Main:
                 self.defeated+=1
                 fgoDevice.device.perform('CIK',(500,500,500))
             schedule.checkStopLater()
+        XDetect.clear()
+        fuse.clear()
+        gc.collect()
     def prepare(self):
         self.start=time.time()
         self.material={}

@@ -87,6 +87,16 @@ def bench():
         return 'Device not available'
     return(lambda bench:f'{f"点击 {bench[0]:.2f}ms"if bench[0]else""}{", "if all(bench)else""}{f"截图 {bench[1]:.2f}ms"if bench[1]else""}')(fgoKernel.bench(15))
 
-def main(config):
+def main(config,device=None):
     globals()['config']=config
+    if device:
+        if device.lower()=='auto':
+            devices=fgoDevice.Device.enumDevices()
+            if devices:device=devices[0]
+            else:
+                logger.error('No device found')
+                device=None
+        if device:
+            config.device=device
+            fgoDevice.device=fgoDevice.Device(device)
     app.run(host='0.0.0.0', port='15000')

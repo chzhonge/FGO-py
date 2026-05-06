@@ -21,5 +21,8 @@ class Fuse:
             self.log[self.logptr]=detect
             self.logptr=(self.logptr+1)%self.logsize
         return True
+    def clear(self):
+        self.log=[None]*self.logsize
+        self.value=0
     def save(self,path='fgoLog'):[self.log[(i+self.logptr)%self.logsize].save(f'{path}/Fuse_{i:02}') for i in range(self.logsize)if self.log[(i+self.logptr)%self.logsize]]
 fuse=Fuse()

@@ -15,7 +15,7 @@ pyplot.ion()
 class MainWindow(QMainWindow,Ui_fgoMainWindow):
     signalFuncBegin=Signal()
     signalFuncEnd=Signal(object)
-    def __init__(self,config,parent=None):
+    def __init__(self,config,device=None,parent=None):
         super().__init__(parent)
         self.color={
             Qt.ColorScheme.Light:lambda x:f'<font color="#{x:06X}">',
@@ -61,7 +61,20 @@ class MainWindow(QMainWindow,Ui_fgoMainWindow):
         self.timer=QTimer(self)
         self.timer.timeout.connect(self.flush)
         self.notifier=[]
-        self.connectDevice()
+        if device:
+            if device.lower()=='auto':
+                devices=fgoDevice.Device.enumDevices()
+                if devices:device=devices[0]
+                else:
+                    QMessageBox.warning(self,'FGO-py',self.tr('未发现可用设备'))
+                    device=None
+            if device:
+                self.config.device=device
+                fgoDevice.device=fgoDevice.Device(device)
+                self.LBL_DEVICE.setText(fgoDevice.device.name)
+                self.MENU_CONTROL_MAPKEY.setChecked(False)
+            else:self.connectDevice()
+        else:self.connectDevice()
     def keyPressEvent(self,key):
         if self.MENU_CONTROL_MAPKEY.isChecked()and not key.modifiers()&~Qt.KeyboardModifier.KeypadModifier:
             try:fgoDevice.device.press(chr(key.nativeVirtualKey()))
@@ -200,6 +213,8 @@ class MainWindow(QMainWindow,Ui_fgoMainWindow):
         if not self.isDeviceAvailable():return
         try:
             chk=fgoKernel.XDetect()
+            pyplot.figure(1)
+            pyplot.clf()
             backend=pyplot.get_current_fig_manager()
             backend.set_window_title(time.strftime(f'Screenshot_%Y-%m-%d_%H.%M.%S.{round(chk.time*1000)%1000:03}',time.localtime(chk.time)))
             backend.toolbar.save_figure=lambda:(backend.window.close(),chk.save())
@@ -287,12 +302,12 @@ class MainWindow(QMainWindow,Ui_fgoMainWindow):
 ''')
     def license(self):os.system(f'start notepad ../LICENSE')
 
-def main(config):
+def main(config,device=None):
     app=QApplication(sys.argv)
     app.setStyle('Fusion')
     translator=QTranslator()
     translator.load(QLocale(),'fgoI18n','.')
     app.installTranslator(translator)
-    myWin=MainWindow(config)
+    myWin=MainWindow(config,device)
     myWin.show()
     sys.exit(app.exec())
