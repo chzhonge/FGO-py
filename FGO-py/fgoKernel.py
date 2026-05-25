@@ -474,6 +474,7 @@ class Battle:
 class Main:
     teamIndex=0
     autoFormation=False
+    friendClass=0
     def __init__(self,appleTotal=0,appleKind=0,battleClass=Battle):
         self.appleTotal=appleTotal
         self.appleKind=appleKind
@@ -565,6 +566,9 @@ class Main:
                 refresh=True
                 continue
             if Detect.cache.isBattleFormation():return
+        if self.friendClass > 0:
+            fgoDevice.device.touch((90 + (self.friendClass - 1) * 68, 127))
+            Detect(.5)
         if not friendImg.flush():return fgoDevice.device.press('8')
         while True:
             timer=time.time()

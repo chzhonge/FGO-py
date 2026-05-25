@@ -64,6 +64,7 @@ class MainWindow(QMainWindow,Ui_fgoMainWindow):
         self.CBB_FRIEND.currentIndexChanged.connect(on_friend_changed)
         for key,ui,callback in(
             ('teamIndex',self.TXT_TEAM,lambda x:setattr(fgoKernel.Main,'teamIndex',x)),
+            ('friendClass',self.CBB_FRIEND_CLASS,lambda x:setattr(fgoKernel.Main,'friendClass',x)),
             (False,self.CKB_TEAM,lambda x:setattr(fgoKernel.Main,'autoFormation',x)),
             ('stopOnDefeated',self.MENU_SETTINGS_DEFEATED,fgoKernel.schedule.stopOnDefeated),
             ('stopOnKizunaReisou',self.MENU_SETTINGS_KIZUNAREISOU,fgoKernel.schedule.stopOnKizunaReisou),

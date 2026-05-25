@@ -206,6 +206,78 @@
            </widget>
           </item>
           <item row="2" column="0">
+           <widget class="QLabel" name="LBL_FRIEND_CLASS">
+            <property name="text">
+             <string>职阶</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QComboBox" name="CBB_FRIEND_CLASS">
+            <property name="statusTip">
+             <string>进入助战选择时自动点击的职阶页签</string>
+            </property>
+            <property name="currentIndex">
+             <number>0</number>
+            </property>
+            <item>
+             <property name="text">
+              <string>不切换</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>All</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Saber</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Archer</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Lancer</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Rider</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Caster</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Assassin</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Berserker</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Extra</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Mix</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="3" column="0">
            <widget class="QLabel" name="LBL_APPLE">
             <property name="maximumSize">
              <size>
@@ -218,7 +290,7 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="1">
+          <item row="3" column="1">
            <layout class="QHBoxLayout" name="LAYOUT_INFO_APPLE">
             <item>
              <widget class="QComboBox" name="CBB_APPLE">
@@ -279,14 +351,14 @@
             </item>
            </layout>
           </item>
-          <item row="3" column="0">
+          <item row="4" column="0">
            <widget class="QLabel" name="LBL_CURRENTDEVICE">
             <property name="text">
              <string>设备</string>
             </property>
            </widget>
           </item>
-          <item row="3" column="1">
+          <item row="4" column="1">
            <layout class="QHBoxLayout" name="LAYOUT_DEVICE">
             <item>
              <widget class="QLabel" name="LBL_DEVICE">
@@ -644,6 +716,7 @@
   <tabstop>TXT_TEAM</tabstop>
   <tabstop>CKB_TEAM</tabstop>
   <tabstop>CBB_FRIEND</tabstop>
+  <tabstop>CBB_FRIEND_CLASS</tabstop>
   <tabstop>CBB_APPLE</tabstop>
   <tabstop>TXT_APPLE</tabstop>
   <tabstop>BTN_CONNECT</tabstop>

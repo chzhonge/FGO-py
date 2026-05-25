@@ -213,11 +213,32 @@ class Ui_fgoMainWindow(object):
 
         self.LAYOUT_INFO.setWidget(1, QFormLayout.FieldRole, self.CBB_FRIEND)
 
+        self.LBL_FRIEND_CLASS = QLabel(self.widget)
+        self.LBL_FRIEND_CLASS.setObjectName(u"LBL_FRIEND_CLASS")
+
+        self.LAYOUT_INFO.setWidget(2, QFormLayout.LabelRole, self.LBL_FRIEND_CLASS)
+
+        self.CBB_FRIEND_CLASS = QComboBox(self.widget)
+        self.CBB_FRIEND_CLASS.addItem("")
+        self.CBB_FRIEND_CLASS.addItem("")
+        self.CBB_FRIEND_CLASS.addItem("")
+        self.CBB_FRIEND_CLASS.addItem("")
+        self.CBB_FRIEND_CLASS.addItem("")
+        self.CBB_FRIEND_CLASS.addItem("")
+        self.CBB_FRIEND_CLASS.addItem("")
+        self.CBB_FRIEND_CLASS.addItem("")
+        self.CBB_FRIEND_CLASS.addItem("")
+        self.CBB_FRIEND_CLASS.addItem("")
+        self.CBB_FRIEND_CLASS.addItem("")
+        self.CBB_FRIEND_CLASS.setObjectName(u"CBB_FRIEND_CLASS")
+
+        self.LAYOUT_INFO.setWidget(2, QFormLayout.FieldRole, self.CBB_FRIEND_CLASS)
+
         self.LBL_APPLE = QLabel(self.widget)
         self.LBL_APPLE.setObjectName(u"LBL_APPLE")
         self.LBL_APPLE.setMaximumSize(QSize(16777215, 28))
 
-        self.LAYOUT_INFO.setWidget(2, QFormLayout.LabelRole, self.LBL_APPLE)
+        self.LAYOUT_INFO.setWidget(3, QFormLayout.LabelRole, self.LBL_APPLE)
 
         self.LAYOUT_INFO_APPLE = QHBoxLayout()
         self.LAYOUT_INFO_APPLE.setObjectName(u"LAYOUT_INFO_APPLE")
@@ -242,12 +263,12 @@ class Ui_fgoMainWindow(object):
         self.LAYOUT_INFO_APPLE.addWidget(self.TXT_APPLE)
 
 
-        self.LAYOUT_INFO.setLayout(2, QFormLayout.FieldRole, self.LAYOUT_INFO_APPLE)
+        self.LAYOUT_INFO.setLayout(3, QFormLayout.FieldRole, self.LAYOUT_INFO_APPLE)
 
         self.LBL_CURRENTDEVICE = QLabel(self.widget)
         self.LBL_CURRENTDEVICE.setObjectName(u"LBL_CURRENTDEVICE")
 
-        self.LAYOUT_INFO.setWidget(3, QFormLayout.LabelRole, self.LBL_CURRENTDEVICE)
+        self.LAYOUT_INFO.setWidget(4, QFormLayout.LabelRole, self.LBL_CURRENTDEVICE)
 
         self.LAYOUT_DEVICE = QHBoxLayout()
         self.LAYOUT_DEVICE.setObjectName(u"LAYOUT_DEVICE")
@@ -268,7 +289,7 @@ class Ui_fgoMainWindow(object):
         self.LAYOUT_DEVICE.addWidget(self.BTN_CONNECT)
 
 
-        self.LAYOUT_INFO.setLayout(3, QFormLayout.FieldRole, self.LAYOUT_DEVICE)
+        self.LAYOUT_INFO.setLayout(4, QFormLayout.FieldRole, self.LAYOUT_DEVICE)
 
 
         self.LAYOUT_LAUNCH.addLayout(self.LAYOUT_INFO)
@@ -374,7 +395,8 @@ class Ui_fgoMainWindow(object):
         QWidget.setTabOrder(self.BTN_QUESTCLEAR, self.TXT_TEAM)
         QWidget.setTabOrder(self.TXT_TEAM, self.CKB_TEAM)
         QWidget.setTabOrder(self.CKB_TEAM, self.CBB_FRIEND)
-        QWidget.setTabOrder(self.CBB_FRIEND, self.CBB_APPLE)
+        QWidget.setTabOrder(self.CBB_FRIEND, self.CBB_FRIEND_CLASS)
+        QWidget.setTabOrder(self.CBB_FRIEND_CLASS, self.CBB_APPLE)
         QWidget.setTabOrder(self.CBB_APPLE, self.TXT_APPLE)
         QWidget.setTabOrder(self.TXT_APPLE, self.BTN_CONNECT)
         QWidget.setTabOrder(self.BTN_CONNECT, self.BTN_QUESTLOAD)
@@ -447,6 +469,7 @@ class Ui_fgoMainWindow(object):
         self.BTN_QUESTUP.clicked.connect(fgoMainWindow.questUp)
         self.BTN_QUESTDOWN.clicked.connect(fgoMainWindow.questDown)
 
+        self.CBB_FRIEND_CLASS.setCurrentIndex(0)
         self.CBB_APPLE.setCurrentIndex(0)
 
     # setupUi
@@ -521,6 +544,22 @@ class Ui_fgoMainWindow(object):
         self.LBL_FRIEND.setText(QCoreApplication.translate("fgoMainWindow", u"\u52a9\u6218", None))
 #if QT_CONFIG(statustip)
         self.CBB_FRIEND.setStatusTip(QCoreApplication.translate("fgoMainWindow", u"\u52a9\u6218\u8bbe\u5b9a(\u5bf9\u5e94 img/friend \u4e0b\u7684\u6587\u4ef6\u5939)", None))
+#endif // QT_CONFIG(statustip)
+        self.LBL_FRIEND_CLASS.setText(QCoreApplication.translate("fgoMainWindow", u"\u804c\u9636", None))
+        self.CBB_FRIEND_CLASS.setItemText(0, QCoreApplication.translate("fgoMainWindow", u"\u4e0d\u5207\u6362", None))
+        self.CBB_FRIEND_CLASS.setItemText(1, QCoreApplication.translate("fgoMainWindow", u"All", None))
+        self.CBB_FRIEND_CLASS.setItemText(2, QCoreApplication.translate("fgoMainWindow", u"Saber", None))
+        self.CBB_FRIEND_CLASS.setItemText(3, QCoreApplication.translate("fgoMainWindow", u"Archer", None))
+        self.CBB_FRIEND_CLASS.setItemText(4, QCoreApplication.translate("fgoMainWindow", u"Lancer", None))
+        self.CBB_FRIEND_CLASS.setItemText(5, QCoreApplication.translate("fgoMainWindow", u"Rider", None))
+        self.CBB_FRIEND_CLASS.setItemText(6, QCoreApplication.translate("fgoMainWindow", u"Caster", None))
+        self.CBB_FRIEND_CLASS.setItemText(7, QCoreApplication.translate("fgoMainWindow", u"Assassin", None))
+        self.CBB_FRIEND_CLASS.setItemText(8, QCoreApplication.translate("fgoMainWindow", u"Berserker", None))
+        self.CBB_FRIEND_CLASS.setItemText(9, QCoreApplication.translate("fgoMainWindow", u"Extra", None))
+        self.CBB_FRIEND_CLASS.setItemText(10, QCoreApplication.translate("fgoMainWindow", u"Mix", None))
+
+#if QT_CONFIG(statustip)
+        self.CBB_FRIEND_CLASS.setStatusTip(QCoreApplication.translate("fgoMainWindow", u"\u8fdb\u5165\u52a9\u6218\u9009\u62e9\u65f6\u81ea\u52a8\u70b9\u51fb\u7684\u804c\u9636\u9875\u7b7e", None))
 #endif // QT_CONFIG(statustip)
         self.LBL_APPLE.setText(QCoreApplication.translate("fgoMainWindow", u"\u82f9\u679c", None))
         self.CBB_APPLE.setItemText(0, QCoreApplication.translate("fgoMainWindow", u"\u91d1", None))
