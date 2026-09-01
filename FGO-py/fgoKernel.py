@@ -260,14 +260,15 @@ class ClassicTurn:
     def getSkillInfo(self,pos,skill,arg):return self.friendInfo[0][skill][arg]if self.friend[pos]and self.friendInfo[0][skill][arg]>=0 else self.skillInfo[self.orderChange[self.servant[pos]]][skill][arg]
     def getHouguInfo(self,pos,arg):return self.friendInfo[1][arg]if self.friend[pos]and self.friendInfo[1][arg]>=0 else self.houguInfo[self.orderChange[self.servant[pos]]][arg]
     def castServantSkill(self,pos,skill):
-        fgoDevice.device.press(('ASD','FGH','JKL')[pos][skill])
+        key=('ASD','FGH','JKL')[pos][skill]
+        fgoDevice.device.press(key)
         response=False
-        timer=time.time()+5
+        timer=time.time()+2
+        retry=0
         while True:
             detect=Detect(.2)
             if close:=detect.getSkillNoneClose():
                 logger.warning(f'Skill {pos} {skill} Disabled')
-                self.countDown[0]=[[max(1,k)for k in j]for j in self.countDown[0]]
                 self.countDown[0][pos][skill]=999
                 fgoDevice.device.touch(close)
                 return
@@ -281,9 +282,11 @@ class ClassicTurn:
             if detect.isTurnBegin():
                 if response:return
                 if time.time()>timer:
-                    logger.warning(f'Skill {pos} {skill} Touch Missed')
-                    self.countDown[0][pos][skill]=1
-                    return
+                    retry+=1
+                    if retry>3:raise ScriptStop(f'Skill {pos} {skill} Touch Failed')
+                    logger.warning(f'Skill {pos} {skill} Touch Missed, Retry {retry}')
+                    fgoDevice.device.press(key)
+                    timer=time.time()+2
             else:response=True
     def castMasterSkill(self,skill):
         self.countDown[1][skill]=15
@@ -451,14 +454,15 @@ class Turn:
         card=list(max(permutations(range(5),3-len(hougu)),key=lambda x:evaluate(hougu+list(x))))
         return''.join(['12345678'[i]for i in hougu+card+list({0,1,2,3,4}-set(card))])
     def castServantSkill(self,pos,skill,target):
-        fgoDevice.device.press(('ASD','FGH','JKL')[pos][skill])
+        key=('ASD','FGH','JKL')[pos][skill]
+        fgoDevice.device.press(key)
         response=False
-        timer=time.time()+5
+        timer=time.time()+2
+        retry=0
         while True:
             detect=Detect(.2)
             if close:=detect.getSkillNoneClose():
                 logger.warning(f'Skill {pos} {skill} Disabled')
-                self.countDown[0]=[[max(1,k)for k in j]for j in self.countDown[0]]
                 self.countDown[0][pos][skill]=999
                 fgoDevice.device.touch(close)
                 break
@@ -474,9 +478,11 @@ class Turn:
             if detect.isTurnBegin():
                 if response:break
                 if time.time()>timer:
-                    logger.warning(f'Skill {pos} {skill} Touch Missed')
-                    self.countDown[0][pos][skill]=1
-                    break
+                    retry+=1
+                    if retry>3:raise ScriptStop(f'Skill {pos} {skill} Touch Failed')
+                    logger.warning(f'Skill {pos} {skill} Touch Missed, Retry {retry}')
+                    fgoDevice.device.press(key)
+                    timer=time.time()+2
             else:response=True
         waitTurnBegin()
     def castMasterSkill(self,skill,target):
