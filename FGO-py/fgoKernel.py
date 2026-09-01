@@ -51,6 +51,26 @@ def serialize(lock):
             with lock:return func(*args,**kwargs)
         return wrapper
     return decorator
+def waitTurnBegin(stabilize=1):
+    dialogRetry=0
+    while True:
+        detect=Detect()
+        if close:=detect.getSkillNoneClose():
+            dialogRetry+=1
+            if dialogRetry>5:raise ScriptStop('Skill Dialog Stuck')
+            logger.warning(f'Close skill dialog at {close}')
+            fgoDevice.device.touch(close)
+            schedule.sleep(.5)
+            continue
+        if detect.isTurnBegin():
+            time.sleep(stabilize)
+            stable=Detect(0)
+            if close:=stable.getSkillNoneClose():
+                logger.warning(f'Close skill dialog at {close}')
+                fgoDevice.device.touch(close)
+                schedule.sleep(.5)
+                continue
+            if stable.isTurnBegin():return
 def guardian():
     logger=logging.getLogger('Guardian')
     prev=None
@@ -213,6 +233,7 @@ class ClassicTurn:
         self.orderChange=[0,1,2,3,4,5]
         self.countDown=[[[0,0,0],[0,0,0],[0,0,0]],[0,0,0]]
     def __call__(self,turn):
+        waitTurnBegin()
         self.stage,self.stageTurn=[t:=Detect(.2).getStage(),1+self.stageTurn*(self.stage==t)]
         self.friend=[Detect.cache.isServantFriend(i)for i in range(3)]
         if turn==1:
@@ -233,22 +254,37 @@ class ClassicTurn:
         while(s:=[(self.getSkillInfo(i,j,3),0,(i,j))for i in range(3)if self.servant[i]<6 for j in range(3)if self.countDown[0][i][j]==0 and(t:=self.getSkillInfo(i,j,0))and(min(t,self.stageTotal)<self.stage or(min(t,self.stageTotal)==self.stage and self.getSkillInfo(i,j,1)<=self.stageTurn))and Detect.cache.isSkillReady(i,j)]+[(self.masterSkill[i][-1],1,(i,))for i in range(3)if self.countDown[1][i]==0 and self.masterSkill[i][0]and(min(self.masterSkill[i][0],self.stageTotal)<self.stage or(min(self.masterSkill[i][0],self.stageTotal)==self.stage and self.masterSkill[i][1]<=self.stageTurn))]):
             _,cast,arg=min(s,key=lambda x:x[0])
             [self.castServantSkill,self.castMasterSkill][cast](*arg)
-            fgoDevice.device.perform('\x08',(700,))
-            while not Detect().isTurnBegin():pass
-            Detect(.5)
+            waitTurnBegin()
     @logit(logger,logging.INFO)
     def selectCard(self):return''.join((lambda hougu,sealed,color,resist,critical:(fgoDevice.device.perform('\x67\x68\x69\x64\x65\x66'[numpy.argmax([Detect.cache.getEnemyHp(i)for i in range(6)])],(500,))if any(hougu)or self.stageTurn==1 else 0,['678'[i]for i in sorted((i for i in range(3)if hougu[i]),key=lambda x:self.getHouguInfo(x,1))]+['12345'[i]for i in sorted(range(5),key=(lambda x:-color[x]*resist[x]*(not sealed[x])*(1+critical[x])))]if any(hougu)else(lambda group:['12345'[i]for i in(lambda choice:choice+tuple({0,1,2,3,4}-set(choice)))(logger.debug('cardRank'+','.join(('  'if i%5 else'\n')+f'({j}, {k:5.2f})'for i,(j,k)in enumerate(sorted([(card,(lambda colorChain,firstCardBonus:sum((firstCardBonus+[1.,1.2,1.4][i]*color[j])*(1+critical[j])*resist[j]*(not sealed[j])for i,j in enumerate(card))+(not any(sealed[i]for i in card))*(4.8*colorChain+(firstCardBonus+1.)*(3 if colorChain else 1.8)*(len({group[i]for i in card})==1)*resist[card[0]]))(len({color[i]for i in card})==1,.3*(color[card[0]]==1.1)))for card in permutations(range(5),3)],key=lambda x:-x[1]))))or max(permutations(range(5),3),key=lambda card:(lambda colorChain,firstCardBonus:sum((firstCardBonus+[1.,1.2,1.4][i]*color[j])*(1+critical[j])*resist[j]*(not sealed[j])for i,j in enumerate(card))+(not any(sealed[i]for i in card))*(4.8*colorChain+(firstCardBonus+1.)*(3 if colorChain else 1.8)*(len({group[i]for i in card})==1)*resist[card[0]]))(len({color[i]for i in card})==1,.3*(color[card[0]]==1.1))))])(Detect.cache.getCardGroup()))[1])([self.servant[i]<6 and j and(t:=self.getHouguInfo(i,0))and self.stage>=min(t,self.stageTotal)for i,j in enumerate(Detect().isHouguReady())],Detect.cache.isCardSealed(),[[.8,1.,1.1][i]for i in Detect.cache.getCardColor()],[[1.,1.7,.6][i]for i in Detect.cache.getCardResist()],[i/10 for i in Detect.cache.getCardCriticalRate()]))
     def getSkillInfo(self,pos,skill,arg):return self.friendInfo[0][skill][arg]if self.friend[pos]and self.friendInfo[0][skill][arg]>=0 else self.skillInfo[self.orderChange[self.servant[pos]]][skill][arg]
     def getHouguInfo(self,pos,arg):return self.friendInfo[1][arg]if self.friend[pos]and self.friendInfo[1][arg]>=0 else self.houguInfo[self.orderChange[self.servant[pos]]][arg]
     def castServantSkill(self,pos,skill):
         fgoDevice.device.press(('ASD','FGH','JKL')[pos][skill])
-        if Detect(.7).isSkillNone():
-            logger.warning(f'Skill {pos} {skill} Disabled')
-            self.countDown[0][pos][skill]=999
-        elif Detect(.7).isSkillCastFailed():
-            self.countDown[0][pos][skill]=1
-            fgoDevice.device.press('J')
-        elif t:=Detect.cache.getSkillTargetCount():fgoDevice.device.perform(['3333','2244','3234'][t-1][self.getSkillInfo(pos,skill,2)],(300,))
+        response=False
+        timer=time.time()+5
+        while True:
+            detect=Detect(.2)
+            if close:=detect.getSkillNoneClose():
+                logger.warning(f'Skill {pos} {skill} Disabled')
+                self.countDown[0]=[[max(1,k)for k in j]for j in self.countDown[0]]
+                self.countDown[0][pos][skill]=999
+                fgoDevice.device.touch(close)
+                return
+            if detect.isSkillCastFailed():
+                self.countDown[0][pos][skill]=1
+                fgoDevice.device.press('J')
+                return
+            if t:=detect.getSkillTargetCount():
+                fgoDevice.device.press(['3333','2244','3234'][t-1][self.getSkillInfo(pos,skill,2)])
+                return
+            if detect.isTurnBegin():
+                if response:return
+                if time.time()>timer:
+                    logger.warning(f'Skill {pos} {skill} Touch Missed')
+                    self.countDown[0][pos][skill]=1
+                    return
+            else:response=True
     def castMasterSkill(self,skill):
         self.countDown[1][skill]=15
         fgoDevice.device.perform('Q'+'WER'[skill],(300,300))
@@ -269,6 +305,7 @@ class Turn:
         self.stageTurn=0
         self.countDown=[[[0,0,0],[0,0,0],[0,0,0]],[0,0,0]]
     def __call__(self,turn):
+        waitTurnBegin()
         self.stage,self.stageTurn=[t:=Detect(.2).getStage(),1+self.stageTurn*(self.stage==t)]
         if turn==1:
             Detect.cache.setupServantDead()
@@ -288,6 +325,7 @@ class Turn:
         self.countDown=[[[max(0,j-1)for j in i]for i in self.countDown[0]],[max(0,i-1)for i in self.countDown[1]]]
         while skill:=[(0,i,j)for i in range(3)for j in range(3)if not self.countDown[0][i][j]and self.servant[i][0]and self.servant[i][6][j][0]and Detect.cache.isSkillReady(i,j)]: # +[(1,i)for i in range(3)if self.countDown[1][i]==0]:
             for i in skill:
+                if i[0]==0 and self.countDown[0][i[1]][i[2]]:continue
                 if i[0]==0:
                     match self.servant[i[1]][6][i[2]]:
                         case 1,_:
@@ -414,24 +452,38 @@ class Turn:
         return''.join(['12345678'[i]for i in hougu+card+list({0,1,2,3,4}-set(card))])
     def castServantSkill(self,pos,skill,target):
         fgoDevice.device.press(('ASD','FGH','JKL')[pos][skill])
-        if Detect(.7).isSkillNone():
-            logger.warning(f'Skill {pos} {skill} Disabled')
-            self.countDown[0][pos][skill]=999
-            fgoDevice.device.press('\x08')
-        elif Detect.cache.isSkillCastFailed():
-            logger.warning(f'Skill {pos} {skill} Cast Failed')
-            self.countDown[0][pos][skill]=1
-            fgoDevice.device.press('J')
-        elif t:=Detect.cache.getSkillTargetCount():fgoDevice.device.perform(['3333','2244','3234'][t-1][f-5 if(f:=self.servant[pos][6][skill][1])in{6,7,8}else target]+'\x08',(300,700))
-        else:fgoDevice.device.perform('\x08',(700,))
-        while not Detect().isTurnBegin():pass
-        Detect(.5)
+        response=False
+        timer=time.time()+5
+        while True:
+            detect=Detect(.2)
+            if close:=detect.getSkillNoneClose():
+                logger.warning(f'Skill {pos} {skill} Disabled')
+                self.countDown[0]=[[max(1,k)for k in j]for j in self.countDown[0]]
+                self.countDown[0][pos][skill]=999
+                fgoDevice.device.touch(close)
+                break
+            if detect.isSkillCastFailed():
+                logger.warning(f'Skill {pos} {skill} Cast Failed')
+                self.countDown[0][pos][skill]=1
+                fgoDevice.device.press('J')
+                break
+            if t:=detect.getSkillTargetCount():
+                f=self.servant[pos][6][skill][1]
+                fgoDevice.device.perform(['3333','2244','3234'][t-1][f-5 if f in{6,7,8}else target]+'\x08',(300,700))
+                break
+            if detect.isTurnBegin():
+                if response:break
+                if time.time()>timer:
+                    logger.warning(f'Skill {pos} {skill} Touch Missed')
+                    self.countDown[0][pos][skill]=1
+                    break
+            else:response=True
+        waitTurnBegin()
     def castMasterSkill(self,skill,target):
         self.countDown[1][skill]=15
         fgoDevice.device.perform('Q'+'WER'[skill],(300,300))
         if t:=Detect(.4).getSkillTargetCount():fgoDevice.device.perform(['3333','2244','3234'][t-1][target],(300,))
-        while not Detect().isTurnBegin():pass
-        Detect(.5)
+        waitTurnBegin()
 class Battle:
     def __init__(self,turnClass=Turn):
         self.turn=0

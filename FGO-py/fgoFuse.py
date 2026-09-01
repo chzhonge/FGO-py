@@ -9,9 +9,10 @@ class Fuse:
         self.logsize=logsize
         self.log=[None]*logsize
         self.logptr=0
-    def increase(self):
+    def increase(self,detect=None):
         logger.debug(f'{self.value}')
         if self.value>self.max:
+            if detect is not None:detect.save('fgoLog/Fuse_Current')
             self.save()
             raise ScriptStop('Fused')
         self.value+=1

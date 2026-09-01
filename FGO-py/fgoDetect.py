@@ -121,7 +121,10 @@ class XDetectBase(metaclass=logMeta(logger)):
     def isServantDead(self,pos,friend=None):return any((self._watchServantPortrait[pos].send(self),self._watchServantFriend[pos].send(self.isServantFriend(pos)if friend is None else friend)))
     def isServantFriend(self,pos):return self._compare(self.tmpl.SUPPORT,(187+318*pos,394,225+318*pos,412))
     def isSkillCastFailed(self):return self._compare(self.tmpl.SKILLERROR,(504,528,776,597))
-    def isSkillNone(self):return self._compare(self.tmpl.CROSS,(1070,45,1105,79))or self._compare(self.tmpl.CROSS,(1093,164,1126,196))
+    def getSkillNoneClose(self):
+        if self._compare(self.tmpl.CROSS,(1070,45,1105,79)):return(1088,62)
+        if self._compare(self.tmpl.CROSS,(1093,164,1126,196)):return(1110,180)
+    def isSkillNone(self):return self.getSkillNoneClose()is not None
     def isSkillReady(self,i,j):return not self._compare(self.tmpl.STILL,(35+318*i+88*j,598,55+318*i+88*j,618),.2)
     def isSpecialDropRainbowBox(self):return self._compare(self.tmpl.RAINBOW,(957,2,990,40),.1)
     def isSpecialDropSuspended(self):return self._compare(self.tmpl.CLOSE,(6,14,28,68))
@@ -286,7 +289,7 @@ class DetectBase(XDetectBase):
     def __init__(self,anteLatency=.1,postLatency=0):
         schedule.sleep(anteLatency)
         super().__init__()
-        fuse.increase()
+        fuse.increase(self)
         schedule.sleep(postLatency)
     def _compare(self,*args,**kwargs):return super()._compare(*args,**kwargs)and fuse.reset(self)
     def _find(self,*args,**kwargs):
