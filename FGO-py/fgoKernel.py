@@ -263,7 +263,7 @@ class ClassicTurn:
         key=('ASD','FGH','JKL')[pos][skill]
         fgoDevice.device.press(key)
         response=False
-        timer=time.time()+2
+        timer=time.time()+1.2
         retry=0
         while True:
             detect=Detect(.2)
@@ -286,7 +286,7 @@ class ClassicTurn:
                     if retry>3:raise ScriptStop(f'Skill {pos} {skill} Touch Failed')
                     logger.warning(f'Skill {pos} {skill} Touch Missed, Retry {retry}')
                     fgoDevice.device.press(key)
-                    timer=time.time()+2
+                    timer=time.time()+1.2
             else:response=True
     def castMasterSkill(self,skill):
         self.countDown[1][skill]=15
@@ -457,7 +457,7 @@ class Turn:
         key=('ASD','FGH','JKL')[pos][skill]
         fgoDevice.device.press(key)
         response=False
-        timer=time.time()+2
+        timer=time.time()+1.2
         retry=0
         while True:
             detect=Detect(.2)
@@ -482,7 +482,7 @@ class Turn:
                     if retry>3:raise ScriptStop(f'Skill {pos} {skill} Touch Failed')
                     logger.warning(f'Skill {pos} {skill} Touch Missed, Retry {retry}')
                     fgoDevice.device.press(key)
-                    timer=time.time()+2
+                    timer=time.time()+1.2
             else:response=True
         waitTurnBegin()
     def castMasterSkill(self,skill,target):
