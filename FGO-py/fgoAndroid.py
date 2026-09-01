@@ -13,6 +13,8 @@ if adb:=shutil.which('adb'):
 class Android(Airtest):
     def __init__(self,serial=None,**kwargs):
         self.mutex=threading.Lock()
+        self.captureMutex=threading.Lock()
+        self.blackFrame=0
         if serial is None or serial=='None':
             self.name=None
             return
@@ -66,7 +68,23 @@ class Android(Airtest):
         with self.mutex:super().touch(self.key[key])
     def pinch(self):
         with self.mutex:super().pinch(percent=.2)
-    def screenshot(self):return cv2.resize(super().snapshot()[self.render[1]+self.border[1]:self.render[1]+self.render[3]-self.border[1],self.render[0]+self.border[0]:self.render[0]+self.render[2]-self.border[0]],(1280,720),interpolation=cv2.INTER_CUBIC)
+    def screenshot(self):
+        with self.captureMutex:
+            frame=super().snapshot()
+            if frame is None or not numpy.any(frame):
+                self.blackFrame+=1
+                if self.blackFrame>=3:
+                    logger.warning(f'Black screenshot from {self.screen_proxy.method_name}, restarting stream')
+                    self.screen_proxy.teardown_stream()
+                    time.sleep(.2)
+                    frame=super().snapshot()
+                    if frame is not None and numpy.any(frame):
+                        logger.warning(f'{self.screen_proxy.method_name} stream recovered')
+                        self.blackFrame=0
+                    else:self.blackFrame=1
+            else:self.blackFrame=0
+            if frame is None:raise RuntimeError('Screen capture returned no frame')
+            return cv2.resize(frame[self.render[1]+self.border[1]:self.render[1]+self.render[3]-self.border[1],self.render[0]+self.border[0]:self.render[0]+self.render[2]-self.border[0]],(1280,720),interpolation=cv2.INTER_CUBIC)
     def invoke169(self):
         x,y=(lambda r:(int(r.group(1)),int(r.group(2))))(re.search(r'(\d+)x(\d+)',self.adb.raw_shell('wm size')))
         if x*16<y*9:self.adb.raw_shell('wm size %dx%d'%(x,x*16//9))
