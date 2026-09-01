@@ -225,6 +225,63 @@ class XDetectTW(XDetectBase):
     tmpl=IMG_TW
     ocr=OCR.ZHT
     def isHouguReady(self,that=None):return(lambda that:[not any(that._compare(j,(313+231*i,194,515+231*i,270),.52)for j in(self.tmpl.HOUGUSEALED,self.tmpl.CHARASEALED))and(numpy.mean(self._crop((144+319*i,679,156+319*i,684)))>55 or numpy.mean(that._crop((144+319*i,679,156+319*i,684)))>55)for i in range(3)])((time.sleep(.15),type(self)())[1]if that is None else that)
+    @classmethod
+    def saveWeeklyMission(cls):
+        result=[]
+        mission=''
+        trans=str.maketrans(
+            '烏書亞蘭衛馬術體類從偉殭別獸視凱劍雙飛風蟲圓騎場復鳥奧盜護豬龍臘運廣殲惡愛爾斬雞機殺獵槍靈邊灘戰穢羅職階肅動裝許門陽臉關屍髏進獲舉辦擊敵',
+            '乌书亚兰卫马术体类从伟僵别兽视凯剑双飞风虫圆骑场复鸟奥盗护猪龙腊运广歼恶爱尔斩鸡机杀猎枪灵边滩战秽罗职阶肃动装许门阳脸关尸髅进获举办击敌'
+        )
+        keywords=[
+            '地', '天', '人', '星', '神性', '超巨大', '猛兽', '魔性', '王', '罗马', '所爱之人', '希腊神话系',
+            '善', '恶', '中庸', '中立', '秩序', '混沌',
+            '剑士', '弓兵', '枪兵', '骑兵', '魔术师', '暗匿者', '狂战士', '从者'
+        ]
+        keywords.sort(key=len,reverse=True)
+        english_map={
+            'saber': '剑士',
+            'archer': '弓兵',
+            'lancer': '枪兵',
+            'rider': '骑兵',
+            'caster': '魔术师',
+            'assassin': '暗匿者',
+            'asxssin': '暗匿者',
+            'berserker': '狂战士',
+            'ruler': '裁定者',
+            'avenger': '复仇者'
+        }
+        raw_ocr=cls.ocr.ocrArea(cls._weeklyMission)
+        cleaned_lines=[]
+        for line in raw_ocr:
+            line=line.strip()
+            if '/' in line:line=line.replace('O','0').replace('o','0')
+            line=line.replace('平敗','擊敗').replace('畢辦','擊敗')
+            line=line.replace('目標進行度','').replace('目標薄行度','')
+            if line:cleaned_lines.append(line)
+        for i in(j.translate(trans) for j in cleaned_lines):
+            progress_match=re.search(r'(\d+)\s*/\s*(\d+)',i)
+            if progress_match:
+                if mission:
+                    count=int(progress_match.group(2))-int(progress_match.group(1))
+                    mission_clean=mission.replace('敌人','敌')
+                    target=[]
+                    for word in keywords:
+                        if word!='从者' and word in mission_clean:
+                            target.append(word)
+                            mission_clean=mission_clean.replace(word,'#')
+                    for eng,chs in english_map.items():
+                        if eng in mission_clean.lower():
+                            target.append(chs)
+                            mission_clean=re.sub(eng,'#',mission_clean,flags=re.IGNORECASE)
+                    is_servant='从者' in mission
+                    if not target and is_servant:target.append('从者')
+                    if target and count>0:result.append((target,not is_servant,count))
+                    mission=''
+                continue
+            if '完成' in i or '进行' in i or '获得' in i or '举办' in i:continue
+            mission+=i
+        return result
 class DetectBase(XDetectBase):
     def __init__(self,anteLatency=.1,postLatency=0):
         schedule.sleep(anteLatency)
