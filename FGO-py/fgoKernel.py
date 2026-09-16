@@ -71,6 +71,43 @@ def waitTurnBegin(stabilize=1):
                 schedule.sleep(.5)
                 continue
             if stable.isTurnBegin():return
+def getStableTurnDetect(interval=.3,attempts=6):
+    previous=None
+    detect=None
+    for _ in range(attempts):
+        detect=Detect(interval)
+        if not detect.isTurnBegin():
+            previous=None
+            continue
+        ready=tuple(detect.isSkillReady(i,j)for i in range(3)for j in range(3))
+        if ready==previous:return detect
+        previous=ready
+    raise ScriptStop('Battle Controls Unstable')
+def getSkillTargetKey(target,count):
+    # Explicit targets are fixed field positions (1=left, 2=middle, 3=right).
+    # A dialog with only one available choice places that choice in the middle.
+    if count==1:return'3'
+    if target in(1,2,3):return str(target+1)
+    return('3','2','3')[count-1]
+def waitCardSelection(interval=.25,attempts=8):
+    recovery=0
+    while True:
+        detect=None
+        for _ in range(attempts):
+            detect=Detect(interval)
+            try:color=detect.getCardColorOnce()
+            except (TypeError,ValueError,IndexError,AssertionError):continue
+            fuse.reset(detect)
+            if recovery:logger.warning(f'Card selection recovered after {recovery} recovery cycle(s)')
+            return detect,color
+        recovery+=1
+        if detect is not None:detect.save('fgoLog/CardSelect_Current',appendTime=False)
+        if detect is not None and detect.isTurnBegin():
+            logger.warning(f'Card selection did not open; pressing Attack again (recovery {recovery})')
+            fgoDevice.device.perform(' ',(2100,))
+        else:
+            logger.warning(f'Card selection unavailable; waiting for screen transition (recovery {recovery})')
+            schedule.sleep(1)
 def guardian():
     logger=logging.getLogger('Guardian')
     prev=None
@@ -234,21 +271,29 @@ class ClassicTurn:
         self.countDown=[[[0,0,0],[0,0,0],[0,0,0]],[0,0,0]]
     def __call__(self,turn):
         waitTurnBegin()
+        previousStage=self.stage
         self.stage,self.stageTurn=[t:=Detect(.2).getStage(),1+self.stageTurn*(self.stage==t)]
-        self.friend=[Detect.cache.isServantFriend(i)for i in range(3)]
+        stable=getStableTurnDetect()
+        self.friend=[stable.isServantFriend(i)for i in range(3)]
         if turn==1:
-            Detect.cache.setupServantDead(self.friend)
-            self.stageTotal=Detect.cache.getStageTotal()
-            self.servant=[6 if self.servant[i]>=6 or Detect.cache.getFieldServantClassRank(i)is None else self.servant[i]for i in range(3)]
+            stable.setupServantDead(self.friend)
+            self.stageTotal=stable.getStageTotal()
+            self.servant=[6 if self.servant[i]>=6 or stable.getFieldServantClassRank(i)is None else self.servant[i]for i in range(3)]
         else:
-            for i in(i for i in range(3)if self.servant[i]<6 and Detect.cache.isServantDead(i,self.friend[i])):
+            changed=[self.servant[i]<6 and stable.isServantDead(i,self.friend[i])for i in range(3)]
+            if self.stage!=previousStage and all(changed):
+                logger.warning('Ignored simultaneous servant changes during stage transition')
+                stable.setupServantDead(self.friend)
+                changed=[False]*3
+            for i in(i for i in range(3)if changed[i]):
                 self.servant[i]=max(self.servant)+1
                 self.countDown[0][i]=[0,0,0]
         logger.info(f'Turn {turn} Stage {self.stage} StageTurn {self.stageTurn} {self.servant}')
         if self.stageTurn==1:Detect.cache.setupEnemyGird()
         self.dispatchSkill()
         fgoDevice.device.perform(' ',(2100,))
-        fgoDevice.device.perform(self.selectCard(),(300,300,2300,1300,6000))
+        detect,color=waitCardSelection()
+        fgoDevice.device.perform(self.selectCard(detect,color),(300,300,2300,1300,6000))
     def dispatchSkill(self):
         self.countDown=[[[max(0,j-1)for j in i]for i in self.countDown[0]],[max(0,i-1)for i in self.countDown[1]]]
         while(s:=[(self.getSkillInfo(i,j,3),0,(i,j))for i in range(3)if self.servant[i]<6 for j in range(3)if self.countDown[0][i][j]==0 and(t:=self.getSkillInfo(i,j,0))and(min(t,self.stageTotal)<self.stage or(min(t,self.stageTotal)==self.stage and self.getSkillInfo(i,j,1)<=self.stageTurn))and Detect.cache.isSkillReady(i,j)]+[(self.masterSkill[i][-1],1,(i,))for i in range(3)if self.countDown[1][i]==0 and self.masterSkill[i][0]and(min(self.masterSkill[i][0],self.stageTotal)<self.stage or(min(self.masterSkill[i][0],self.stageTotal)==self.stage and self.masterSkill[i][1]<=self.stageTurn))]):
@@ -256,7 +301,7 @@ class ClassicTurn:
             [self.castServantSkill,self.castMasterSkill][cast](*arg)
             waitTurnBegin()
     @logit(logger,logging.INFO)
-    def selectCard(self):return''.join((lambda hougu,sealed,color,resist,critical:(fgoDevice.device.perform('\x67\x68\x69\x64\x65\x66'[numpy.argmax([Detect.cache.getEnemyHp(i)for i in range(6)])],(500,))if any(hougu)or self.stageTurn==1 else 0,['678'[i]for i in sorted((i for i in range(3)if hougu[i]),key=lambda x:self.getHouguInfo(x,1))]+['12345'[i]for i in sorted(range(5),key=(lambda x:-color[x]*resist[x]*(not sealed[x])*(1+critical[x])))]if any(hougu)else(lambda group:['12345'[i]for i in(lambda choice:choice+tuple({0,1,2,3,4}-set(choice)))(logger.debug('cardRank'+','.join(('  'if i%5 else'\n')+f'({j}, {k:5.2f})'for i,(j,k)in enumerate(sorted([(card,(lambda colorChain,firstCardBonus:sum((firstCardBonus+[1.,1.2,1.4][i]*color[j])*(1+critical[j])*resist[j]*(not sealed[j])for i,j in enumerate(card))+(not any(sealed[i]for i in card))*(4.8*colorChain+(firstCardBonus+1.)*(3 if colorChain else 1.8)*(len({group[i]for i in card})==1)*resist[card[0]]))(len({color[i]for i in card})==1,.3*(color[card[0]]==1.1)))for card in permutations(range(5),3)],key=lambda x:-x[1]))))or max(permutations(range(5),3),key=lambda card:(lambda colorChain,firstCardBonus:sum((firstCardBonus+[1.,1.2,1.4][i]*color[j])*(1+critical[j])*resist[j]*(not sealed[j])for i,j in enumerate(card))+(not any(sealed[i]for i in card))*(4.8*colorChain+(firstCardBonus+1.)*(3 if colorChain else 1.8)*(len({group[i]for i in card})==1)*resist[card[0]]))(len({color[i]for i in card})==1,.3*(color[card[0]]==1.1))))])(Detect.cache.getCardGroup()))[1])([self.servant[i]<6 and j and(t:=self.getHouguInfo(i,0))and self.stage>=min(t,self.stageTotal)for i,j in enumerate(Detect().isHouguReady())],Detect.cache.isCardSealed(),[[.8,1.,1.1][i]for i in Detect.cache.getCardColor()],[[1.,1.7,.6][i]for i in Detect.cache.getCardResist()],[i/10 for i in Detect.cache.getCardCriticalRate()]))
+    def selectCard(self,detect,cardColor):return''.join((lambda hougu,sealed,color,resist,critical:(fgoDevice.device.perform('\x67\x68\x69\x64\x65\x66'[numpy.argmax([detect.getEnemyHp(i)for i in range(6)])],(500,))if any(hougu)or self.stageTurn==1 else 0,['678'[i]for i in sorted((i for i in range(3)if hougu[i]),key=lambda x:self.getHouguInfo(x,1))]+['12345'[i]for i in sorted(range(5),key=(lambda x:-color[x]*resist[x]*(not sealed[x])*(1+critical[x])))]if any(hougu)else(lambda group:['12345'[i]for i in(lambda choice:choice+tuple({0,1,2,3,4}-set(choice)))(logger.debug('cardRank'+','.join(('  'if i%5 else'\n')+f'({j}, {k:5.2f})'for i,(j,k)in enumerate(sorted([(card,(lambda colorChain,firstCardBonus:sum((firstCardBonus+[1.,1.2,1.4][i]*color[j])*(1+critical[j])*resist[j]*(not sealed[j])for i,j in enumerate(card))+(not any(sealed[i]for i in card))*(4.8*colorChain+(firstCardBonus+1.)*(3 if colorChain else 1.8)*(len({group[i]for i in card})==1)*resist[card[0]]))(len({color[i]for i in card})==1,.3*(color[card[0]]==1.1)))for card in permutations(range(5),3)],key=lambda x:-x[1]))))or max(permutations(range(5),3),key=lambda card:(lambda colorChain,firstCardBonus:sum((firstCardBonus+[1.,1.2,1.4][i]*color[j])*(1+critical[j])*resist[j]*(not sealed[j])for i,j in enumerate(card))+(not any(sealed[i]for i in card))*(4.8*colorChain+(firstCardBonus+1.)*(3 if colorChain else 1.8)*(len({group[i]for i in card})==1)*resist[card[0]]))(len({color[i]for i in card})==1,.3*(color[card[0]]==1.1))))])(detect.getCardGroup()))[1])([self.servant[i]<6 and j and(t:=self.getHouguInfo(i,0))and self.stage>=min(t,self.stageTotal)for i,j in enumerate(detect.isHouguReady())],detect.isCardSealed(),[[.8,1.,1.1][i]for i in cardColor],[[1.,1.7,.6][i]for i in detect.getCardResist()],[i/10 for i in detect.getCardCriticalRate()]))
     def getSkillInfo(self,pos,skill,arg):return self.friendInfo[0][skill][arg]if self.friend[pos]and self.friendInfo[0][skill][arg]>=0 else self.skillInfo[self.orderChange[self.servant[pos]]][skill][arg]
     def getHouguInfo(self,pos,arg):return self.friendInfo[1][arg]if self.friend[pos]and self.friendInfo[1][arg]>=0 else self.houguInfo[self.orderChange[self.servant[pos]]][arg]
     def castServantSkill(self,pos,skill):
@@ -277,7 +322,10 @@ class ClassicTurn:
                 fgoDevice.device.press('J')
                 return
             if t:=detect.getSkillTargetCount():
-                fgoDevice.device.press(['3333','2244','3234'][t-1][self.getSkillInfo(pos,skill,2)])
+                target=self.getSkillInfo(pos,skill,2)
+                key=getSkillTargetKey(target,t)
+                logger.info(f'Skill {pos+1}-{skill+1} target {target}, detected {t} choice(s), press {key}')
+                fgoDevice.device.press(key)
                 return
             if detect.isTurnBegin():
                 if response:return
@@ -301,7 +349,7 @@ class ClassicTurn:
                 while not Detect().isTurnBegin():pass
                 self.friend=[Detect(.5).isServantFriend(0),Detect.cache.isServantFriend(1),Detect.cache.isServantFriend(2)]
                 Detect.cache.setupServantDead(self.friend)
-            elif t:=Detect(.5).getSkillTargetCount():fgoDevice.device.perform(['3333','2244','3234'][t-1][self.masterSkill[skill][2]],(300,))
+            elif t:=Detect(.5).getSkillTargetCount():fgoDevice.device.perform(getSkillTargetKey(self.masterSkill[skill][2],t),(300,))
 class Turn:
     def __init__(self):
         self.stage=0
@@ -309,21 +357,29 @@ class Turn:
         self.countDown=[[[0,0,0],[0,0,0],[0,0,0]],[0,0,0]]
     def __call__(self,turn):
         waitTurnBegin()
+        previousStage=self.stage
         self.stage,self.stageTurn=[t:=Detect(.2).getStage(),1+self.stageTurn*(self.stage==t)]
+        stable=getStableTurnDetect()
         if turn==1:
-            Detect.cache.setupServantDead()
-            self.stageTotal=Detect.cache.getStageTotal()
-            self.servant=[(lambda x:(x,)+servantData.get(x,(0,0,0,0,(0,0),((0,0),(0,0),(0,0)))))(Detect.cache.getFieldServant(i))for i in range(3)]
+            stable.setupServantDead()
+            self.stageTotal=stable.getStageTotal()
+            self.servant=[(lambda x:(x,)+servantData.get(x,(0,0,0,0,(0,0),((0,0),(0,0),(0,0)))))(stable.getFieldServant(i))for i in range(3)]
         else:
-            for i in(i for i in range(3)if Detect.cache.isServantDead(i)):
-                self.servant[i]=(lambda x:(x,)+servantData.get(x,(0,0,0,0,(0,0),((0,0),(0,0),(0,0)))))(Detect.cache.getFieldServant(i))
+            changed=[stable.isServantDead(i)for i in range(3)]
+            if self.stage!=previousStage and all(changed):
+                logger.warning('Ignored simultaneous servant changes during stage transition')
+                stable.setupServantDead()
+                changed=[False]*3
+            for i in(i for i in range(3)if changed[i]):
+                self.servant[i]=(lambda x:(x,)+servantData.get(x,(0,0,0,0,(0,0),((0,0),(0,0),(0,0)))))(stable.getFieldServant(i))
                 self.countDown[0][i]=[0,0,0]
         logger.info(f'Turn {turn} Stage {self.stage} StageTurn {self.stageTurn} {[i[0]for i in self.servant]}')
         if self.stageTurn==1:self.enemy=[2,0,5][Detect.cache.setupEnemyGird()]
         self.enemy=[Detect.cache.getEnemyHp(i)for i in range(6)]
         self.dispatchSkill()
         fgoDevice.device.perform(' ',(2100,))
-        fgoDevice.device.perform(self.selectCard(),(300,300,2300,1300,6000))
+        detect,color=waitCardSelection()
+        fgoDevice.device.perform(self.selectCard(detect,color),(300,300,2300,1300,6000))
     def dispatchSkill(self):
         self.countDown=[[[max(0,j-1)for j in i]for i in self.countDown[0]],[max(0,i-1)for i in self.countDown[1]]]
         while skill:=[(0,i,j)for i in range(3)for j in range(3)if not self.countDown[0][i][j]and self.servant[i][0]and self.servant[i][6][j][0]and Detect.cache.isSkillReady(i,j)]: # +[(1,i)for i in range(3)if self.countDown[1][i]==0]:
@@ -427,8 +483,8 @@ class Turn:
                     self.countDown[0][i[1]][i[2]]=1
                 else:...
     @logit(logger,logging.INFO)
-    def selectCard(self):
-        color,sealed,hougu,np,resist,critical,group=Detect().getCardColor()+[i[5][1]for i in self.servant],Detect.cache.isCardSealed(),Detect.cache.isHouguReady(),[Detect.cache.getFieldServantNp(i)<100 for i in range(3)],[[1,1.7,.6][i]for i in Detect.cache.getCardResist()],[i/10 for i in Detect.cache.getCardCriticalRate()],[next(j for j,k in enumerate(self.servant)if k[0]==i)for i in Detect.cache.getCardServant([i[0] for i in self.servant if i[0]])]+[0,1,2]
+    def selectCard(self,detect,cardColor):
+        color,sealed,hougu,np,resist,critical,group=cardColor+[i[5][1]for i in self.servant],detect.isCardSealed(),detect.isHouguReady(),[detect.getFieldServantNp(i)<100 for i in range(3)],[[1,1.7,.6][i]for i in detect.getCardResist()],[i/10 for i in detect.getCardCriticalRate()],[next(j for j,k in enumerate(self.servant)if k[0]==i)for i in detect.getCardServant([i[0] for i in self.servant if i[0]])]+[0,1,2]
         houguTargeted,houguArea,houguSupport=[[j for j in range(3)if hougu[j]and self.servant[j][0]and self.servant[j][5][0]==i]for i in range(3)]
         houguArea=houguArea if self.stage==self.stageTotal or sum(i>0 for i in self.enemy)>1 and sum(self.enemy)>12000 else[]
         houguTargeted=houguTargeted if self.stage==self.stageTotal or max(self.enemy)>23000+8000*len(houguArea)else[]
@@ -473,7 +529,7 @@ class Turn:
                 break
             if t:=detect.getSkillTargetCount():
                 f=self.servant[pos][6][skill][1]
-                fgoDevice.device.perform(['3333','2244','3234'][t-1][f-5 if f in{6,7,8}else target]+'\x08',(300,700))
+                fgoDevice.device.perform(getSkillTargetKey(f-5 if f in{6,7,8}else target,t)+'\x08',(300,700))
                 break
             if detect.isTurnBegin():
                 if response:break
@@ -488,7 +544,7 @@ class Turn:
     def castMasterSkill(self,skill,target):
         self.countDown[1][skill]=15
         fgoDevice.device.perform('Q'+'WER'[skill],(300,300))
-        if t:=Detect(.4).getSkillTargetCount():fgoDevice.device.perform(['3333','2244','3234'][t-1][target],(300,))
+        if t:=Detect(.4).getSkillTargetCount():fgoDevice.device.perform(getSkillTargetKey(target,t),(300,))
         waitTurnBegin()
 class Battle:
     def __init__(self,turnClass=Turn):

@@ -11,10 +11,11 @@ if adb:=shutil.which('adb'):
     ADB.builtin_adb_path=staticmethod(lambda:adb)
 
 class Android(Airtest):
+    JAVACAP_INVALID_LIMIT=3
     def __init__(self,serial=None,**kwargs):
         self.mutex=threading.Lock()
         self.captureMutex=threading.Lock()
-        self.blackFrame=0
+        self.invalidFrame=0
         if serial is None or serial=='None':
             self.name=None
             return
@@ -68,23 +69,46 @@ class Android(Airtest):
         with self.mutex:super().touch(self.key[key])
     def pinch(self):
         with self.mutex:super().pinch(percent=.2)
+    @staticmethod
+    def _isInvalidJavacapFrame(frame):
+        if frame is None or not frame.size or not numpy.any(frame):return True
+        # A broken JAVACAP JPEG can decode successfully as an almost entirely
+        # white image with a solid black rectangle, so it must not reach the
+        # image detector merely because it contains a few non-zero pixels.
+        return numpy.mean(numpy.all(frame>250,axis=2))>.9
+    def _useCaptureMethod(self,method):
+        self.screen_proxy=method
+        self.invalidFrame=0
+        logger.warning(f'Screen capture switched to {self.screen_proxy.method_name}')
+    def _fallBackToAdbcap(self):
+        # Keep the fallback for this connection. Switching capture sources can
+        # change portrait pixels and be mistaken for servant replacement,
+        # causing the skill dispatcher to use the reserve servants' settings.
+        self._useCaptureMethod(CAP_METHOD.ADBCAP)
+        logger.warning('Keeping ADBCAP until reconnect to preserve battle image comparisons')
+    def _cropScreenshot(self,frame):
+        if frame is None:raise RuntimeError('Screen capture returned no frame')
+        cropped=frame[self.render[1]+self.border[1]:self.render[1]+self.render[3]-self.border[1],self.render[0]+self.border[0]:self.render[0]+self.render[2]-self.border[0]]
+        if not cropped.size:raise RuntimeError(f'Invalid screen capture size: {frame.shape}')
+        return cv2.resize(cropped,(1280,720),interpolation=cv2.INTER_CUBIC)
     def screenshot(self):
         with self.captureMutex:
-            frame=super().snapshot()
-            if frame is None or not numpy.any(frame):
-                self.blackFrame+=1
-                if self.blackFrame>=3:
-                    logger.warning(f'Black screenshot from {self.screen_proxy.method_name}, restarting stream')
-                    self.screen_proxy.teardown_stream()
-                    time.sleep(.2)
-                    frame=super().snapshot()
-                    if frame is not None and numpy.any(frame):
-                        logger.warning(f'{self.screen_proxy.method_name} stream recovered')
-                        self.blackFrame=0
-                    else:self.blackFrame=1
-            else:self.blackFrame=0
-            if frame is None:raise RuntimeError('Screen capture returned no frame')
-            return cv2.resize(frame[self.render[1]+self.border[1]:self.render[1]+self.render[3]-self.border[1],self.render[0]+self.border[0]:self.render[0]+self.render[2]-self.border[0]],(1280,720),interpolation=cv2.INTER_CUBIC)
+            while True:
+                method=self.screen_proxy.method_name
+                try:frame=super().snapshot()
+                except Exception as e:
+                    if method!='JAVACAP':raise
+                    logger.warning(f'JAVACAP capture failed: {e!r}')
+                    frame=None
+                if method!='JAVACAP' or not self._isInvalidJavacapFrame(frame):
+                    self.invalidFrame=0
+                    return self._cropScreenshot(frame)
+                self.invalidFrame+=1
+                if self.invalidFrame<self.JAVACAP_INVALID_LIMIT:
+                    time.sleep(.1)
+                    continue
+                logger.warning('Invalid screenshots from JAVACAP, falling back to ADBCAP')
+                self._fallBackToAdbcap()
     def invoke169(self):
         x,y=(lambda r:(int(r.group(1)),int(r.group(2))))(re.search(r'(\d+)x(\d+)',self.adb.raw_shell('wm size')))
         if x*16<y*9:self.adb.raw_shell('wm size %dx%d'%(x,x*16//9))

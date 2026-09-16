@@ -140,8 +140,12 @@ class XDetectBase(metaclass=logMeta(logger)):
     def isWeeklyMission(self):return numpy.min(cv2.matchTemplate(servantImg[1][1][5][0],cv2.resize(self._crop((296,117,421,210)),(0,0),fx=.555,fy=.555,interpolation=cv2.INTER_CUBIC),cv2.TM_SQDIFF_NORMED))<.1
     def isWeeklyMissionListEnd(self):return self._isListEnd((1261,614))
     def getAp(self):return self._ocrInt((236,664,323,684))//1000
+    def getCardColorOnce(self):
+        color=[self._select((self.tmpl.ARTS,self.tmpl.QUICK,self.tmpl.BUSTER),(80+257*i,537,131+257*i,581))for i in range(5)]
+        if any(i is None for i in color):raise ValueError('Card color unavailable')
+        return color
     @retryOnError()
-    def getCardColor(self):return[+self._select((self.tmpl.ARTS,self.tmpl.QUICK,self.tmpl.BUSTER),(80+257*i,537,131+257*i,581))for i in range(5)]
+    def getCardColor(self):return self.getCardColorOnce()
     def getCardCriticalRate(self):return[(lambda x:0 if x is None else x+1)(self._select((self.tmpl.CRITICAL1,self.tmpl.CRITICAL2,self.tmpl.CRITICAL3,self.tmpl.CRITICAL4,self.tmpl.CRITICAL5,self.tmpl.CRITICAL6,self.tmpl.CRITICAL7,self.tmpl.CRITICAL8,self.tmpl.CRITICAL9,self.tmpl.CRITICAL0),(76+257*i,350,113+257*i,405),.06))for i in range(5)]
     def getCardGroup(self):
         universe={0,1,2,3,4}
