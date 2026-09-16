@@ -15,6 +15,7 @@ fgoTemp/
 *.ipynb
 Fuse*.png
 Capture*.png
+CardSelect*.png
 SpecialDrop*.png
 Screenshot*.png
 SummonHistory(*.png
