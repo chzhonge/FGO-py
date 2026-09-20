@@ -22,6 +22,8 @@ class MainWindow(QMainWindow,Ui_fgoMainWindow):
             Qt.ColorScheme.Dark:lambda x:f'<font color="#{x^0xFFFFFF:06X}">',
         }.get(QApplication.styleHints().colorScheme(),lambda _:'')
         self.setupUi(self)
+        self.MENU_TEAMUP_EDITOR = self.MENU_SETTINGS.addAction('編隊設定…')
+        self.MENU_TEAMUP_EDITOR.triggered.connect(lambda: Teamup(self).exec())
         if platform.system()=='Darwin':self.setStyleSheet("QWidget{font-family:\"PingFang SC\";font-size:15px}")
         self.setWindowIcon(QIcon('fgoIcon.ico'))
         self.TRAY=QSystemTrayIcon(self)
