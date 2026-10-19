@@ -90,6 +90,22 @@ class Teamup(QDialog):
         hint.setObjectName('hint')
         root.addWidget(hint)
 
+        formation_row = QHBoxLayout()
+        formation_row.addWidget(QLabel('遊戲內編隊'))
+        self.TXT_TEAM = QSpinBox(self)
+        self.TXT_TEAM.setObjectName('TXT_TEAM')
+        self.TXT_TEAM.setRange(0, 15)
+        self.TXT_TEAM.setSpecialValueText('0（不切換）')
+        self.TXT_TEAM.setToolTip('遊戲內隊伍編成畫面的位置，從左到右 1–15；0 表示不切換編隊。')
+        outer_team = getattr(self.parentWidget(), 'TXT_TEAM', None)
+        self.TXT_TEAM.setValue(outer_team.value() if outer_team is not None else fgoKernel.Main.teamIndex)
+        formation_row.addWidget(self.TXT_TEAM)
+        formation_hint = QLabel('按「使用」或「儲存並使用」時同步至主視窗。')
+        formation_hint.setObjectName('hint')
+        formation_row.addWidget(formation_hint)
+        formation_row.addStretch()
+        root.addLayout(formation_row)
+
         team_row = QHBoxLayout()
         team_row.addWidget(QLabel('目前隊伍'))
         self.CBB_TEAM = QComboBox(self)
@@ -440,4 +456,8 @@ class Teamup(QDialog):
         fgoKernel.ClassicTurn.skillInfo = values['skillInfo']
         fgoKernel.ClassicTurn.houguInfo = values['houguInfo']
         fgoKernel.ClassicTurn.masterSkill = values['masterSkill']
+        outer_team = getattr(self.parentWidget(), 'TXT_TEAM', None)
+        if outer_team is not None:
+            outer_team.setValue(self.TXT_TEAM.value())
+        fgoKernel.Main.teamIndex = self.TXT_TEAM.value()
         super().accept()
