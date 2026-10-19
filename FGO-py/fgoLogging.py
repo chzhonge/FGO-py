@@ -21,6 +21,20 @@ hijack('airtest')
 import pponnxcr
 hijack('pponnxcr')
 def getLogger(name):return logging.getLogger('fgo.'+name)
+
+def installQtMessageHandler():
+    from PySide6.QtCore import QtMsgType,qInstallMessageHandler
+    qtLogger=getLogger('Qt')
+    levels={
+        QtMsgType.QtDebugMsg:logging.DEBUG,
+        QtMsgType.QtInfoMsg:logging.INFO,
+        QtMsgType.QtWarningMsg:logging.WARNING,
+        QtMsgType.QtCriticalMsg:logging.ERROR,
+        QtMsgType.QtFatalMsg:logging.CRITICAL,
+    }
+    def handleMessage(kind,context,message):
+        qtLogger.log(levels.get(kind,logging.WARNING),'%s',message)
+    return qInstallMessageHandler(handleMessage)
 def logit(logger,level=logging.DEBUG,transform=lambda x:repr(x)[:256]):return lambda func:wraps(func)(lambda*args,**kwargs:(lambda x:(logger.log(level,' '.join((func.__name__,transform(x)))),x)[-1]if x is not None else x)(func(*args,**kwargs)))
 def logMeta(logger):return lambda name,bases,attrs:type(name,bases,{i:logit(logger)(j)if i[0]!='_'and isfunction(j)else j.__class__(logit(logger)(j.__func__))if i[0]!='_'and isinstance(j,(classmethod,staticmethod))else j for i,j in attrs.items()})
 logger.critical(f'FGO-py {VERSION} PID {os.getpid()}')

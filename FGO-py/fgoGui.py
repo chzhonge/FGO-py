@@ -9,7 +9,9 @@ import fgoKernel
 from fgoMainWindow import Ui_fgoMainWindow
 from fgoGuiTeamup import Teamup
 from fgoMetadata import quest
+from fgoLogging import installQtMessageHandler
 logger=fgoKernel.getLogger('Gui')
+installQtMessageHandler()
 pyplot.ion()
 
 class MainWindow(QMainWindow,Ui_fgoMainWindow):
