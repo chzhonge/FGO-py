@@ -84,7 +84,7 @@ class Teamup(QDialog):
         title = QLabel('編隊自動化設定')
         title.setObjectName('title')
         root.addWidget(title)
-        hint = QLabel('選擇隊伍後，依序設定從者技能、寶具與御主技能；按「儲存」直接更新 fgoTeamup.ini。')
+        hint = QLabel('按「使用」套用目前編隊設定；需要保留修改時，請按「儲存」或「儲存並使用」。')
         hint.setObjectName('hint')
         root.addWidget(hint)
 
@@ -144,6 +144,9 @@ class Teamup(QDialog):
         root.addWidget(self.tabs, 1)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.BTN_USE = buttons.addButton('使用', QDialogButtonBox.ActionRole)
+        self.BTN_USE.setToolTip('套用目前設定並關閉視窗，不儲存編隊檔案')
+        self.BTN_USE.clicked.connect(self.use)
         buttons.button(QDialogButtonBox.Save).setText('儲存')
         buttons.button(QDialogButtonBox.Ok).setText('儲存並使用')
         buttons.button(QDialogButtonBox.Ok).setObjectName('primary')
@@ -426,9 +429,12 @@ class Teamup(QDialog):
             self._set_servant(index, index + 1 if by_position else 1)
 
     def accept(self):
-        values = self._values()
         if not self.save():
             return
+        self.use()
+
+    def use(self):
+        values = self._values()
         fgoKernel.ClassicTurn.skillInfo = values['skillInfo']
         fgoKernel.ClassicTurn.houguInfo = values['houguInfo']
         fgoKernel.ClassicTurn.masterSkill = values['masterSkill']

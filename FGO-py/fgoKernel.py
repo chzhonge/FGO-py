@@ -328,7 +328,10 @@ class ClassicTurn:
                 fgoDevice.device.press(key)
                 return
             if detect.isTurnBegin():
-                if response:return
+                # A capture/reconnect delay can hide the entire cast animation.
+                # The fresh cooldown state is stronger evidence than whether
+                # this loop happened to observe that animation.
+                if response or not detect.isSkillReady(pos,skill):return
                 if time.time()>timer:
                     retry+=1
                     if retry>3:raise ScriptStop(f'Skill {pos} {skill} Touch Failed')
@@ -532,7 +535,7 @@ class Turn:
                 fgoDevice.device.perform(getSkillTargetKey(f-5 if f in{6,7,8}else target,t)+'\x08',(300,700))
                 break
             if detect.isTurnBegin():
-                if response:break
+                if response or not detect.isSkillReady(pos,skill):break
                 if time.time()>timer:
                     retry+=1
                     if retry>3:raise ScriptStop(f'Skill {pos} {skill} Touch Failed')
