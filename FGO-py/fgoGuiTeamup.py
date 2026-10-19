@@ -60,6 +60,8 @@ class Teamup(QDialog):
             QComboBox, QSpinBox { background: #0f172a; color: #f8fafc;
                                  border: 1px solid #475569; border-radius: 6px;
                                  padding: 5px; min-height: 24px; }
+            QSpinBox::up-button, QSpinBox::down-button {
+                background: #334155; border: 0; }
             QComboBox::drop-down { border: 0; width: 24px; }
             QComboBox QAbstractItemView { background: #1e293b; color: #f8fafc;
                                          border: 1px solid #475569;
