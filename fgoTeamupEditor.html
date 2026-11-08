@@ -42,6 +42,23 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #475569;
         }
+
+        .plan-button {
+            min-height: 34px;
+            padding: 4px 8px;
+            border: 1px solid #475569;
+            border-radius: 7px;
+            background: #1e293b;
+        }
+
+        .plan-button:hover:not(:disabled), .plan-button[aria-pressed="true"] {
+            border-color: #7dd3fc;
+            background: #164e63;
+        }
+
+        .plan-button:disabled {
+            opacity: .45;
+        }
     </style>
 </head>
 
@@ -174,7 +191,122 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div class="flex flex-wrap gap-2 mb-5" aria-label="編輯模式">
+                    <button v-for="(label, mode) in ['點擊編排', '數值設定']" :key="label" type="button"
+                        class="px-4 py-2 rounded-lg border border-slate-600"
+                        :class="editorMode === mode ? 'bg-blue-700 text-white' : 'bg-slate-900 text-slate-300'"
+                        :aria-pressed="editorMode === mode" @click="editorMode = mode">{{ label }}</button>
+                </div>
+
+                <section v-if="editorMode === 0" aria-label="點擊編排" class="space-y-4">
+                    <p class="text-sm text-slate-300">分段表示最早施放時間。同一招每組隊伍只匯出一筆，額外加入的項目會標為「僅預覽」。</p>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div class="min-w-0 space-y-3">
+                            <div v-for="(group, row) in roster" :key="row">
+                                <h3 class="font-semibold mb-2">{{ row === 0 ? '前排' : '後排' }}</h3>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <div v-for="slot in group" :key="slot[0].slot" class="rounded-xl bg-slate-900 border border-slate-700 p-2">
+                                        <div class="rounded-lg bg-gradient-to-br from-blue-900 to-slate-800 text-center p-2 mb-2">
+                                            <strong class="block text-lg">從者 {{ String(slot[0].slot).padStart(2, '0') }}</strong>
+                                            <small v-if="activeSwap && activeSwap.values[2] === slot[0].slot" class="block text-sky-200">
+                                                換人後此位是從者 {{ activeSwap.values[3] }}
+                                            </small>
+                                            <small v-if="activeSwap && activeSwap.values[3] === slot[0].slot" class="block text-sky-200">
+                                                換到場上 {{ activeSwap.values[2] }} 號位
+                                            </small>
+                                        </div>
+                                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-1">
+                                            <button v-for="entry in slot" :key="entry.key" type="button" class="plan-button px-1"
+                                                :class="entry.np ? 'sm:col-span-3 text-amber-200' : ''"
+                                                :aria-label="entry.name" :aria-pressed="Boolean(inCurrentStep(entry))"
+                                                @click="toggleEntry(entry)">{{ entry.label }}</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold mb-2">御主技能</h3>
+                                <div class="flex flex-wrap gap-2">
+                                    <button v-for="entry in masterEntries" :key="entry.key" type="button" class="plan-button"
+                                        :aria-pressed="Boolean(inCurrentStep(entry))" @click="toggleEntry(entry)">{{ entry.name }}</button>
+                                </div>
+                            </div>
+                        </div>
+                        <section class="min-w-0 rounded-xl bg-slate-900 border border-slate-700 p-3 h-80 lg:h-0 lg:min-h-full overflow-y-auto"
+                            ref="planQueue" aria-label="施放順序">
+                            <div class="flex items-center justify-between gap-2 mb-2">
+                                <h3 class="font-semibold">施放順序</h3>
+                                <button type="button" class="plan-button" :disabled="!canClear" @click="clearPlan">清空設定</button>
+                            </div>
+                            <section v-for="step in steps" :key="step.key" class="border-t border-slate-700 pt-2 mt-2">
+                                <div class="flex flex-wrap justify-between items-center gap-2">
+                                    <button type="button" class="plan-button" :aria-pressed="step.key === currentStep.key"
+                                        @click="chooseStep(step)">第 {{ step.wave }} 面・第 {{ step.turn }} 回合</button>
+                                    <button type="button" class="plan-button" @click="removeStep(step)">移除回合</button>
+                                </div>
+                                <p v-if="!step.rows.length" class="text-sm text-slate-400 py-2">尚未加入施放設定</p>
+                                <ol v-else class="divide-y divide-slate-800">
+                                    <li v-for="(entry, i) in step.rows" :key="entry.key"
+                                        class="flex flex-wrap items-center justify-between gap-1 py-2"
+                                        :class="selectedRow?.values === entry.values ? 'bg-sky-950' : ''">
+                                        <button type="button" class="text-left flex-1 min-w-28 px-1" @click="chooseStep(step, entry)">
+                                            <strong>{{ i + 1 }}. {{ entry.name }}</strong>
+                                            <span v-if="entry.draft" class="text-xs text-amber-200 ml-1">僅預覽</span>
+                                            <small class="block text-slate-300">{{ entryDescription(entry) }}</small>
+                                            <small v-if="entry.slot > 3 && !entry.np && step.rows.slice(i + 1).some(later => isSwap(later) && later.values[3] === entry.slot)"
+                                                class="block text-amber-200">要換人後接這招，請把換人往前移</small>
+                                        </button>
+                                        <div class="flex flex-wrap gap-1">
+                                            <button type="button" class="plan-button" :aria-label="'上移 ' + entry.name"
+                                                :disabled="!i || step.rows[i-1].np !== entry.np" @click="moveEntry(step, i, -1)">↑</button>
+                                            <button type="button" class="plan-button" :aria-label="'下移 ' + entry.name"
+                                                :disabled="i === step.rows.length-1 || step.rows[i+1].np !== entry.np" @click="moveEntry(step, i, 1)">↓</button>
+                                            <button type="button" class="plan-button" @click="disableEntry(entry)">移除</button>
+                                        </div>
+                                    </li>
+                                </ol>
+                            </section>
+                        </section>
+                    </div>
+                    <div class="flex flex-wrap items-end gap-3 border-t border-slate-700 pt-3">
+                        <div v-if="selectedRow" class="space-y-2">
+                            <h3 class="font-semibold">{{ selectedRow.name }}
+                                <span v-if="selectedRow.draft" class="text-sm text-amber-200">・僅預覽</span>
+                            </h3>
+                            <div v-if="selectedRow.swap" class="flex flex-wrap items-center gap-2">
+                                <button type="button" class="plan-button" :aria-pressed="!isSwap(selectedRow)"
+                                    @click="setSwap(false)">一般技能</button>
+                                <button type="button" class="plan-button" :aria-pressed="isSwap(selectedRow)"
+                                    @click="setSwap(true)">換人</button>
+                            </div>
+                            <template v-if="isSwap(selectedRow)">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span>場上換下</span>
+                                    <button v-for="n in [1,2,3]" :key="n" type="button" class="plan-button"
+                                        :aria-pressed="selectedRow.values[2] === n" @click="selectedRow.values[2] = n">{{ n }} 號</button>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span>後備換上</span>
+                                    <button v-for="n in [4,5,6]" :key="n" type="button" class="plan-button"
+                                        :aria-pressed="selectedRow.values[3] === n" @click="selectedRow.values[3] = n">{{ n }} 號</button>
+                                </div>
+                            </template>
+                            <div v-else-if="!selectedRow.np" class="flex flex-wrap items-center gap-2">
+                                <span>對象</span>
+                                <button v-for="(label,n) in targetLabels(selectedRow)" :key="n" type="button" class="plan-button"
+                                    :aria-pressed="selectedRow.values[2] === n" @click="selectedRow.values[2] = n">{{ label }}</button>
+                            </div>
+                            <button v-if="selectedRow.draft" type="button" class="plan-button" @click="useDraft">改用此筆匯出</button>
+                        </div>
+                        <div class="flex flex-wrap justify-end gap-2 ml-auto">
+                            <button type="button" class="plan-button" :disabled="steps.at(-1).turn >= 9" @click="addStep(false)">下個回合</button>
+                            <button type="button" class="plan-button" :disabled="steps.at(-1).wave >= 9" @click="addStep(true)">下一面</button>
+                        </div>
+                    </div>
+                    <p v-if="planNotice" role="status" class="text-sm text-amber-200">{{ planNotice }}</p>
+                </section>
+
+                <div v-else class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     <!-- Servants Configuration -->
                     <div class="xl:col-span-2 space-y-6">
                         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -373,7 +505,7 @@
     </div>
 
     <script>
-        const { createApp, ref, reactive, computed } = Vue;
+        const { createApp, ref, reactive, computed, watch, nextTick } = Vue;
 
         createApp({
             setup() {
@@ -404,6 +536,208 @@
                 const state = computed(() => {
                     return configs[activeConfigIndex.value];
                 });
+
+                const editorMode = ref(0);
+                const planQueue = ref(null);
+                const planNotice = ref('');
+                const currentKey = ref('1:1');
+                const selectedValues = ref(null);
+                const planByTeam = new WeakMap();
+                const plan = computed(() => {
+                    const team = state.value;
+                    if (!planByTeam.has(team)) {
+                        planByTeam.set(team, reactive({extra: [], drafts: [], nextId: 0}));
+                    }
+                    return planByTeam.get(team);
+                });
+                watch(state, () => {
+                    currentKey.value = '1:1';
+                    selectedValues.value = null;
+                    planNotice.value = '';
+                });
+
+                const rosterSlots = computed(() => state.value.servants.map(({skills}, i) => {
+                    const slot = i + 1;
+                    return [
+                        ...skills.map((values, j) => ({
+                            key: i * 3 + j, slot, label: '技 ' + (j + 1),
+                            name: '從者 ' + slot + '・技 ' + (j + 1), values, np: false
+                        })),
+                        {key: 21 + i, slot, label: '寶具', name: '從者 ' + slot + '・寶具',
+                            values: state.value.hougu[i], np: true}
+                    ];
+                }));
+                const roster = computed(() => [rosterSlots.value.slice(0, 3), rosterSlots.value.slice(3)]);
+                const masterEntries = computed(() => state.value.masterSkills.map((values, i) => ({
+                    key: 18 + i, slot: 0, name: '御主技 ' + (i + 1), values, np: false, swap: i === 2
+                })));
+                const catalog = computed(() => [...rosterSlots.value.flat(), ...masterEntries.value]);
+                const entries = computed(() => [...catalog.value, ...plan.value.drafts]);
+                const rank = entry => Number(entry.values.at(-1)) || 0;
+                const displayOrder = entry => entry.previewOrder ?? (rank(entry) + (entry.source ?? entry.key) / 32);
+                const order = (a, b) => displayOrder(a) - displayOrder(b);
+                const atStep = (entry, step) => Number(entry.values[0]) === step.wave &&
+                    (entry.np ? step.turn === 1 : Math.max(1, Number(entry.values[1]) || 0) === step.turn);
+                const steps = computed(() => {
+                    const maxTurns = [0, 1];
+                    const points = [
+                        ...entries.value.filter(entry => entry.values[0] > 0).map(entry => ({
+                            wave: Number(entry.values[0]), turn: entry.np ? 1 : Math.max(1, Number(entry.values[1]) || 0)
+                        })),
+                        ...plan.value.extra
+                    ];
+                    for (const {wave, turn} of points) maxTurns[wave] = Math.max(turn, maxTurns[wave] || 1);
+                    return Array.from({length: maxTurns.length - 1}, (_, i) => {
+                        const wave = i + 1;
+                        return Array.from({length: maxTurns[wave] || 1}, (_, j) => {
+                            const turn = j + 1;
+                            const rows = entries.value.filter(entry => atStep(entry, {wave, turn}))
+                                .sort((a, b) => Number(a.np) - Number(b.np) || order(a, b));
+                            return {key: wave + ':' + turn, wave, turn, rows};
+                        });
+                    }).flat();
+                });
+                const currentStep = computed(() => steps.value.find(step => step.key === currentKey.value) || steps.value[0]);
+                const selectedRow = computed(() => entries.value.find(entry => entry.values === selectedValues.value));
+                const isSwap = entry => Boolean(entry?.swap && entry.values[3]);
+                const activeSwap = computed(() => currentStep.value.rows.find(isSwap));
+                const targetLabels = entry => [entry.slot ? '預設' : '不指定', '左側', '中間', '右側'];
+                const canClear = computed(() => steps.value.length > 1 || entries.value.some(entry => entry.values[0] > 0));
+
+                function entryDescription(entry) {
+                    const standby = entry.slot > 3 ? '上場後可放・' : '';
+                    if (entry.np) return standby + '第 ' + entry.values[0] + ' 面起，寶具可用時';
+                    if (isSwap(entry)) return entry.values[2] + ' 號下場 → ' + entry.values[3] + ' 號上場';
+                    return standby + '對象・' + (targetLabels(entry)[entry.values[2]] || '預設');
+                }
+
+                function chooseStep(step, entry) {
+                    currentKey.value = step.key;
+                    selectedValues.value = entry?.values || null;
+                    planNotice.value = '';
+                }
+
+                function inCurrentStep(entry) {
+                    const step = entry.np ? {...currentStep.value, turn: 1} : currentStep.value;
+                    return entries.value.find(row => (row.source ?? row.key) === entry.key && atStep(row, step));
+                }
+
+                function disableEntry(entry) {
+                    if (entry.draft) plan.value.drafts.splice(plan.value.drafts.indexOf(entry), 1);
+                    else entry.values[0] = 0;
+                    if (selectedValues.value === entry.values) selectedValues.value = null;
+                }
+
+                function toggleEntry(entry) {
+                    const existing = inCurrentStep(entry);
+                    if (existing) {
+                        disableEntry(existing);
+                        return;
+                    }
+                    const {wave, turn} = currentStep.value;
+                    const enabled = catalog.value.filter(row => row.np === entry.np && row.values[0] > 0);
+                    const priority = Math.max(-1, ...enabled.map(rank)) + 1;
+                    if (entry.values[0] > 0) {
+                        const values = [...entry.values];
+                        values[0] = wave;
+                        if (!entry.np) values[1] = turn;
+                        values[values.length - 1] = Math.min(15, priority);
+                        plan.value.drafts.push({...entry, key: 'draft-' + plan.value.nextId++,
+                            source: entry.key, values, draft: true});
+                        selectedValues.value = plan.value.drafts.at(-1).values;
+                    } else {
+                        entry.values[0] = wave;
+                        if (!entry.np) entry.values[1] = turn;
+                        entry.values[entry.values.length - 1] = Math.min(15, priority);
+                        selectedValues.value = entry.values;
+                    }
+                }
+
+                function useDraft() {
+                    const draft = selectedRow.value;
+                    const original = catalog.value.find(entry => entry.key === draft.source);
+                    const previous = [...original.values];
+                    original.values.splice(0, original.values.length, ...draft.values);
+                    if (previous[0] > 0) {
+                        draft.values.splice(0, draft.values.length, ...previous);
+                        delete draft.previewOrder;
+                    }
+                    else disableEntry(draft);
+                    selectedValues.value = original.values;
+                }
+
+                function setSwap(enabled) {
+                    const values = selectedRow.value.values;
+                    if (enabled && ![1, 2, 3].includes(values[2])) values[2] = 1;
+                    values[3] = enabled ? values[3] || 4 : 0;
+                }
+
+                function moveEntry(step, index, direction) {
+                    const entry = step.rows[index];
+                    const neighbor = step.rows[index + direction];
+                    if (entry.draft || neighbor.draft) {
+                        const draft = entry.draft ? entry : neighbor;
+                        const anchor = draft === entry ? neighbor : entry;
+                        const offset = draft === entry ? direction : -direction;
+                        const beyond = step.rows[(draft === entry ? index + direction : index) + offset];
+                        const edge = displayOrder(anchor);
+                        draft.previewOrder = beyond?.np === draft.np ? (edge + displayOrder(beyond)) / 2 : edge + offset;
+                        return;
+                    }
+                    const ordered = catalog.value.filter(row => row.values[0] > 0 && row.np === entry.np).sort(order);
+                    const from = ordered.findIndex(row => row.key === entry.key);
+                    const to = ordered.findIndex(row => row.key === neighbor.key);
+                    [ordered[from], ordered[to]] = [ordered[to], ordered[from]];
+                    let priority = 0;
+                    const priorities = ordered.map((row, i) => {
+                        if (i && (row.source ?? row.key) <= (ordered[i-1].source ?? ordered[i-1].key)) priority++;
+                        return priority;
+                    });
+                    if (priority > 15) {
+                        planNotice.value = '這個順序超過陳年老肝編輯器的優先值範圍。';
+                        return;
+                    }
+                    ordered.forEach((row, i) => { row.values[row.values.length - 1] = priorities[i]; });
+                    planNotice.value = '';
+                }
+
+                function addStep(nextWave) {
+                    const last = steps.value.at(-1);
+                    const wave = last.wave + Number(nextWave);
+                    const turn = nextWave ? 1 : last.turn + 1;
+                    plan.value.extra.push({wave, turn});
+                    chooseStep({key: wave + ':' + turn});
+                    nextTick(() => {
+                        if (planQueue.value) planQueue.value.scrollTop = planQueue.value.scrollHeight;
+                    });
+                }
+
+                function removeStep(step) {
+                    const before = steps.value;
+                    const index = before.findIndex(other => other.key === step.key);
+                    const waveRemains = before.some(other => other.key !== step.key && other.wave === step.wave);
+                    const retained = before.filter(other => other.key !== step.key).map(({wave, turn}) => ({
+                        wave: !waveRemains && wave > step.wave ? wave - 1 : wave,
+                        turn: wave === step.wave && turn > step.turn ? turn - 1 : turn
+                    }));
+                    for (const entry of entries.value) {
+                        const [wave, turn] = entry.values.map(Number);
+                        if (wave === step.wave) {
+                            if (!waveRemains || (!entry.np && Math.max(1, turn) === step.turn)) disableEntry(entry);
+                            else if (!entry.np && turn > step.turn) entry.values[1] = turn - 1;
+                        } else if (!waveRemains && wave > step.wave) entry.values[0] = wave - 1;
+                    }
+                    plan.value.extra = retained;
+                    chooseStep(steps.value[Math.min(index, steps.value.length - 1)]);
+                }
+
+                function clearPlan() {
+                    if (!confirm('確定清空此隊伍的技能、寶具和回合設定嗎？')) return;
+                    catalog.value.forEach(entry => { entry.values[0] = 0; });
+                    plan.value.drafts = [];
+                    plan.value.extra = [];
+                    chooseStep(steps.value[0]);
+                }
 
                 const addConfig = () => {
                     configs.push(generateBlankState('新隊伍設定'));
@@ -516,6 +850,10 @@
                     configs,
                     activeConfigIndex,
                     state,
+                    editorMode, planQueue, planNotice, roster, masterEntries, steps, currentStep,
+                    selectedRow, isSwap, activeSwap, targetLabels, canClear, entryDescription,
+                    chooseStep, inCurrentStep, disableEntry, toggleEntry, useDraft, setSwap,
+                    moveEntry, addStep, removeStep, clearPlan,
                     importText,
                     importError,
                     importSuccess,

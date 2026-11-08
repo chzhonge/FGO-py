@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 
 import fgoKernel
 from fgoTeamupParser import IniParser
+from fgoTeamupPlan import TeamupPlan
 
 logger = fgoKernel.getLogger('Teamup')
 TEAMUP_FILE = Path(__file__).with_name('fgoTeamup.ini')
@@ -45,8 +46,11 @@ class Teamup(QDialog):
             if families:
                 self.setFont(QFont(families[0], 10))
         self.setWindowTitle('FGO-py 編隊設定')
-        self.resize(970, 720)
-        self.setMinimumSize(760, 560)
+        available = self.screen().availableGeometry()
+        width = max(1, available.width() - 48)
+        height = max(1, available.height() - 80)
+        self.setMinimumSize(min(900, width), min(640, height))
+        self.resize(min(1200, width), min(860, height))
         self.setStyleSheet('''
             QDialog { background: #0f172a; color: #f8fafc; font-size: 14px; }
             QLabel { color: #e2e8f0; }
@@ -72,6 +76,8 @@ class Teamup(QDialog):
             QPushButton { background: #334155; color: #f8fafc; border: 0;
                           border-radius: 7px; padding: 8px 13px; }
             QPushButton:hover { background: #475569; }
+            QPushButton:checked { background: #164e63; border: 1px solid #7dd3fc; }
+            QPushButton:disabled { color: #94a3b8; background: #1e293b; }
             QPushButton#primary { background: #2563eb; font-weight: bold; }
             QPushButton#primary:hover { background: #3b82f6; }
             QTabWidget::pane { border: 1px solid #334155; border-radius: 8px; }
@@ -145,9 +151,13 @@ class Teamup(QDialog):
         reset_button = QPushButton('恢復預設值')
         reset_button.clicked.connect(self.reset)
         quick_row.addWidget(reset_button)
-        root.addLayout(quick_row)
-
         self.tabs = QTabWidget(self)
+        self.plan_page = TeamupPlan(self._values, self._show_values)
+        self.tabs.addTab(self.plan_page, '點擊編排')
+        numeric_page = QWidget()
+        numeric_layout = QVBoxLayout(numeric_page)
+        numeric_layout.addLayout(quick_row)
+        numeric_tabs = QTabWidget()
         for start, label in ((0, '前排 · 1–3 號'), (3, '後備 · 4–6 號')):
             page = QWidget()
             column = QVBoxLayout(page)
@@ -156,9 +166,12 @@ class Teamup(QDialog):
             for index in range(start, start + 3):
                 column.addWidget(self._servant_card(index))
             column.addStretch()
-            self.tabs.addTab(self._scroll_page(page), label)
-        self.tabs.addTab(self._master_page(), '御主技能 · 換人')
+            numeric_tabs.addTab(self._scroll_page(page), label)
+        numeric_tabs.addTab(self._master_page(), '御主技能 · 換人')
+        numeric_layout.addWidget(numeric_tabs, 1)
+        self.tabs.addTab(numeric_page, '數值設定')
         self.tabs.addTab(self._help_page(), '欄位說明')
+        self.tabs.currentChanged.connect(self._refresh_plan)
         root.addWidget(self.tabs, 1)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -352,6 +365,7 @@ class Teamup(QDialog):
                 self.CBB_TEAM.setCurrentText(self.current_team)
             return
         self.current_team = team
+        self.plan_page.reset()
         self.BTN_DUPLICATE.setEnabled(True)
 
     def save(self):
@@ -366,6 +380,7 @@ class Teamup(QDialog):
 
     def reset(self):
         self._show_values(self._read_team('DEFAULT'))
+        self.plan_page.reset()
 
     def add_team(self):
         name, ok = QInputDialog.getText(self, '新增編隊', '編隊名稱：')
@@ -451,6 +466,11 @@ class Teamup(QDialog):
     def global_reset(self, by_position):
         for index in range(6):
             self._set_servant(index, index + 1 if by_position else 1)
+        self.plan_page.reset()
+
+    def _refresh_plan(self):
+        if self.tabs.currentWidget() is self.plan_page:
+            self.plan_page.refresh()
 
     def accept(self):
         if not self.save():
