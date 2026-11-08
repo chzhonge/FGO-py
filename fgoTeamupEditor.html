@@ -107,11 +107,11 @@
                     基礎參數設定說明
                 </h3>
                 <ul class="list-disc list-inside text-sm text-slate-300 space-y-1.5">
-                    <li><strong class="text-white">面數 (Stage)：</strong>技能最早可施放的敵人波數。第一波為 1，第二波為 2。要停用技能，請將面數設為 0。</li>
-                    <li><strong class="text-white">回合 (Turn)：</strong>在該「面數」的第幾次回合(出卡機會)。剛進第一面是 1。設為 0 代表無視回合。</li>
+                    <li><strong class="text-white">面數 (Stage)：</strong>設定最早可施放的波數。面數 0 表示停用。面數超過關卡總波數時，程式會按最後一面判斷。</li>
+                    <li><strong class="text-white">回合 (Turn)：</strong>技能在指定面數最早可施放的回合，每面從第 1 回合開始。回合 0 從該面一開始就可施放。進入後續面數後，技能可用時仍可能施放。</li>
                     <li><strong class="text-white">對象 (Target)：</strong>技能目標。1 = 最左邊，2 = 中間，3 = 最右邊。👉 <span class="text-slate-400">若為全體或自身技能，填任何數字皆可。</span></li>
                     <li><strong class="text-white">順序 (Priority)：</strong>同一回合內，符合施放條件的技能會依數字從小到大施放。順序 0 優先於 1；要停用技能，只需將面數設為 0。</li>
-                    <li>👉 <b>提示：</b>想要第 1 波用 1 號角色，就設面數 1；第 2 波用 2 號角色，就設面數 2。</li>
+                    <li><strong class="text-white">寶具 (NP)：</strong>設定面數與順序。從指定面數起，出卡時若寶具可用就會選用。同回合有多個寶具時，數字越小越先出。敵方目標由程式選擇剩餘 HP 最高的敵人。</li>
                 </ul>
             </div>
 
@@ -126,6 +126,7 @@
                 <ul class="list-disc list-inside text-sm text-slate-300 space-y-1.5">
                     <li><strong class="text-orange-200">禮裝換人設定 5 碼：</strong>
                         <span class="font-mono text-xs bg-slate-800 px-1.5 py-0.5 rounded text-orange-300">[面數, 回合, 場上換下(1~3), 後備換上(4~6), 順序]</span>
+                        御主技能 3 請保留 5 碼。一般技能將後備換上設為 0，第三欄用來設定技能對象。
                     </li>
                     <li><strong class="text-white">換上來後看哪位從者？</strong>
                         換人後，該位置的技能與寶具是讀取<strong class="text-yellow-300">「換上場的從者設定 (如 5 號位)」</strong>，而非原先的從者。
@@ -280,14 +281,14 @@
                                     </div>
                                     <div class="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label class="block text-xs text-slate-400 mb-1">面數設定 (Stage)</label>
+                                            <label class="block text-xs text-slate-400 mb-1" title="最早可施放的面數，0 表示停用">面數 (Stage)</label>
                                             <input type="number" v-model.number="state.hougu[i][0]"
                                                 class="w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-sm outline-none focus:border-purple-400 text-center"
                                                 min="0">
                                         </div>
                                         <div>
                                             <label class="block text-xs text-slate-400 mb-1"
-                                                title="與順序意義相同">順序/對象</label>
+                                                title="同回合有多個寶具時，數字越小越先出">順序 (Priority)</label>
                                             <input type="number" v-model.number="state.hougu[i][1]"
                                                 class="w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-sm outline-none focus:border-purple-400 text-center"
                                                 min="0">
@@ -317,9 +318,9 @@
                                     class="bg-slate-900/60 rounded-xl p-3 border border-orange-500/20 hover:border-orange-500/40 transition-colors">
                                     <div class="font-medium text-sm text-orange-200 mb-2 flex items-center justify-between">
                                         <span>禮裝技能 {{ i + 1 }}</span>
-                                        <span v-if="mskill.length === 5"
+                                        <span v-if="i === 2"
                                             class="text-[11px] bg-orange-900/40 text-orange-300 border border-orange-500/40 px-2 py-0.5 rounded-full font-normal">
-                                            換人模式 (5碼)
+                                            {{ mskill[3] > 0 ? '換人技能' : '一般技能' }}
                                         </span>
                                     </div>
                                     <div class="grid grid-cols-2 gap-2 mb-2">
@@ -337,38 +338,30 @@
                                         </div>
                                         <div>
                                             <label class="block text-xs mb-1"
-                                                :class="mskill.length === 5 ? 'text-orange-300 font-semibold' : 'text-slate-400'">
-                                                {{ mskill.length === 5 ? '場上換下 (1~3)' : '對象' }}
+                                                :class="i === 2 && mskill[3] > 0 ? 'text-orange-300 font-semibold' : 'text-slate-400'">
+                                                {{ i === 2 && mskill[3] > 0 ? '場上換下 (1~3)' : '對象' }}
                                             </label>
                                             <input type="number" v-model.number="mskill[2]"
                                                 class="w-full bg-slate-900 border border-slate-600 rounded p-1 text-sm outline-none focus:border-orange-400 text-center"
-                                                min="0" :placeholder="mskill.length === 5 ? '1~3' : ''">
+                                                min="0" :placeholder="i === 2 && mskill[3] > 0 ? '1~3' : ''">
                                         </div>
                                         <div>
                                             <label class="block text-xs text-slate-400 mb-1">順序</label>
-                                            <input type="number" v-model.number="mskill[mskill.length-1]"
+                                            <input type="number" v-model.number="mskill[i === 2 ? 4 : 3]"
                                                 class="w-full bg-slate-900 border border-slate-600 rounded p-1 text-sm outline-none focus:border-orange-400 text-center"
                                                 min="0">
                                         </div>
                                     </div>
-                                    <!-- Extra field for Order Change (Master Skill 3 typically has 5 params) -->
-                                    <div v-if="mskill.length === 5" class="pt-2 border-t border-slate-700/50 mt-2">
+                                    <div v-if="i === 2" class="pt-2 border-t border-slate-700/50 mt-2">
                                         <div class="flex justify-between items-center mb-1">
-                                            <label class="block text-xs text-orange-300 font-semibold">後備換上對象 (4~6)</label>
-                                            <button @click="mskill.splice(3, 1)" class="text-[10px] text-red-400 hover:text-red-300">轉為普通 4 碼</button>
+                                            <label class="block text-xs text-orange-300 font-semibold">後備換上（0 為一般技能，4～6 為換人）</label>
                                         </div>
                                         <input type="number" v-model.number="mskill[3]"
                                             class="w-full bg-slate-900 border border-orange-500/50 rounded p-1.5 text-sm outline-none focus:border-orange-400 text-center font-mono"
-                                            min="0" placeholder="例如填 5 (代表 5 號位從者)">
+                                            min="0" max="6" placeholder="0 或 4～6">
                                         <p class="text-[11px] text-slate-400 mt-1.5 leading-tight">
                                             💡 <b>換人範例：</b>若將場上 3 號換成後備 5 號，上面<b>「場上換下」</b>填 <span class="text-orange-300 font-mono">3</span>，這裡<b>「後備換上」</b>填 <span class="text-orange-300 font-mono">5</span>。
                                         </p>
-                                    </div>
-                                    <div v-if="mskill.length < 5 && i === 2" class="pt-2">
-                                        <button @click="mskill.splice(3, 0, 0)"
-                                            class="text-xs text-orange-400/80 hover:text-orange-300 underline underline-offset-2 flex items-center gap-1">
-                                            <span>+ 開啟換人技能 (Order Change 5 碼)</span>
-                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -481,7 +474,13 @@
                                 if (parsed && parsed.length === 6) currentConfig.hougu = parsed;
                             } else if (t.startsWith('masterSkill')) {
                                 const parsed = safeParseList(t);
-                                if (parsed && parsed.length === 3) currentConfig.masterSkills = parsed;
+                                if (!Array.isArray(parsed) || parsed.length !== 3 ||
+                                    !parsed.every((skill, i) => Array.isArray(skill) &&
+                                        (skill.length === 4 || (i === 2 && skill.length === 5)))) {
+                                    throw new Error('御主技能 1、2 需要 4 碼，御主技能 3 需要 5 碼。');
+                                }
+                                if (parsed[2].length === 4) parsed[2].splice(3, 0, 0);
+                                currentConfig.masterSkills = parsed;
                             }
                         }
 

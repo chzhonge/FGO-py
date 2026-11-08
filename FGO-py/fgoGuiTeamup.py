@@ -237,7 +237,7 @@ class Teamup(QDialog):
         column.addLayout(header)
         skill_fields = (
             ('面數', 9, '第幾波開始施放；0 表示不施放'),
-            ('回合', 9, '該面第幾回合；0 表示不限回合'),
+            ('回合', 9, '指定面數最早可施放的回合，0 表示從該面一開始就可施放'),
             ('對象', 3, '場上左至右為 1、2、3'),
             ('順序', 15, '數字越小越先施放'),
         )
@@ -245,8 +245,8 @@ class Teamup(QDialog):
             column.addWidget(self._skill_row(f'TXT_SKILL_{index}_{skill}',
                                               f'技能 {skill + 1}', skill_fields))
         column.addWidget(self._skill_row(f'TXT_HOUGU_{index}', '寶具 NP', (
-            ('面數', 9, '第幾波施放寶具；0 表示不施放'),
-            ('順序', 15, '同回合的施放順序；數字越小越先施放'),
+            ('面數', 9, '從指定面數起，出卡時若寶具可用就會選用。面數 0 表示停用'),
+            ('順序', 15, '同回合有多個寶具時，數字越小越先出'),
         )))
         return card
 
@@ -255,16 +255,16 @@ class Teamup(QDialog):
         column = QVBoxLayout(page)
         column.setContentsMargins(14, 14, 14, 14)
         column.setSpacing(12)
-        note = QLabel('第三個御主技能是換人時，填入場上換下位置 1–3 與後備換上位置 4–6。')
+        note = QLabel('御主技能 3 為一般技能時，後備換上填 0。換人時，填場上換下位置 1–3 與後備換上位置 4–6。')
         note.setObjectName('hint')
         column.addWidget(note)
         for index in range(3):
             card, content = self._card()
-            content.addWidget(self._heading(f'御主技能 {index + 1}' + ('  ·  換人技能' if index == 2 else '')))
+            content.addWidget(self._heading(f'御主技能 {index + 1}'))
             fields = [
-                ('面數', 9, '第幾波施放；0 表示不施放'),
-                ('回合', 9, '該面第幾回合施放'),
-                ('場上換下' if index == 2 else '對象', 6 if index == 2 else 3,
+                ('面數', 9, '最早可施放的面數，0 表示停用'),
+                ('回合', 9, '指定面數最早可施放的回合，0 表示從該面一開始就可施放'),
+                ('對象／場上換下' if index == 2 else '對象', 6 if index == 2 else 3,
                  '場上位置 1–3' if index == 2 else '場上左至右為 1、2、3'),
             ]
             if index == 2:
@@ -285,10 +285,11 @@ class Teamup(QDialog):
         column.setContentsMargins(22, 22, 22, 22)
         column.setSpacing(14)
         for title, body in (
-            ('面數與回合', '面數是敵人第幾波，回合是該波第幾次出卡。技能的面數填 0 表示不施放。'),
+            ('面數與回合', '面數 0 表示停用。面數超過關卡總波數時，程式按最後一面判斷。技能的回合欄位限制指定面數最早何時施放，後續面數只要技能可用仍可能施放。'),
             ('對象', '場上由左到右為 1、2、3。全體或自身技能可填任一對象。'),
-            ('順序', '同回合要施放多個技能時，數字越小越先施放。'),
-            ('後備從者', '後備 4–6 號換上場後，程式讀取該號位的技能與寶具設定；對象仍按場上位置填 1–3。'),
+            ('順序', '同回合要施放多個技能時，數字越小越先施放，0 排在 1 前面。'),
+            ('寶具', '從指定面數起，出卡時若寶具可用就會選用。同回合有多個寶具時，數字越小越先出。敵方目標由程式選擇剩餘 HP 最高的敵人。'),
+            ('後備從者', '後備 4–6 號換上場後，程式讀取該號位的技能與寶具設定。技能對象仍按場上位置填 1–3。'),
             ('換人技能', '御主技能 3：場上換下填 1–3，後備換上填 4–6。例如把 3 號換成 5 號，分別填 3 和 5。'),
         ):
             card, content = self._card()
@@ -322,8 +323,13 @@ class Teamup(QDialog):
                 getattr(self, f'TXT_MASTER_{i}_{j}').setValue(values['masterSkill'][i][j])
 
     def _read_team(self, name):
-        return {key: ast.literal_eval(self.teamup[name][key])
-                for key in ('skillInfo', 'houguInfo', 'masterSkill')}
+        values = {key: ast.literal_eval(self.teamup[name][key])
+                  for key in ('skillInfo', 'houguInfo', 'masterSkill')}
+        master_skills = values['masterSkill']
+        if len(master_skills[2]) == 4:
+            wave, turn, target, priority = master_skills[2]
+            values['masterSkill'] = [*master_skills[:2], [wave, turn, target, 0, priority]]
+        return values
 
     def _remember_current(self):
         if self.current_team:
